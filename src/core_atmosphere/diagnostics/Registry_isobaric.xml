@@ -177,6 +177,18 @@
         <var name="qv_isobaric"       type="real" dimensions="t_iso_levels nCells Time" units="kg kg^{-1}"
              description="Water vapor mixing ratio interpolated to isobaric surfaces defined in t_iso_levels"/>
 
+        <var name="dtheta_dt_mp_isobaric" type="real" dimensions="t_iso_levels nCells Time" units="K s^{-1}"
+             description="Potential temperature heating rate from microphysics interpolated to isobaric surfaces defined in t_iso_levels"/>
+
+        <var name="rthratenlw_isobaric" type="real" dimensions="t_iso_levels nCells Time" units="K s^{-1}"
+             description="tendency of potential temperature due to long wave radiation interpolated to isobaric surfaces defined in t_iso_levels"/>
+
+        <var name="rthratensw_isobaric" type="real" dimensions="t_iso_levels nCells Time" units="K s^{-1}" 
+             description="tendency of potential temperature due to short wave radiation interpolated to isobaric surfaces defined in t_iso_levels"/>
+
+        <var name="rthblten_isobaric" type="real" dimensions="t_iso_levels nCells Time" units="K s^{-1}" 
+             description="tendency of potential temperature due to pbl processes interpolated to isobaric surfaces defined in t_iso_levels"/>
+
         <var name="rh_isobaric"       type="real" dimensions="t_iso_levels nCells Time" units="%"
              description="Relative humidity interpolated to isobaric surfaces defined in t_iso_levels"/>
 
