@@ -447,6 +447,10 @@ module isobaric_diagnostics
         call mpas_pool_get_array(diag, 'uReconstructZonal', uzonal)
         call mpas_pool_get_array(diag, 'relhum', relhum)
         call mpas_pool_get_array(diag, 'rho', rho)
+
+        call mpas_pool_get_array(tend_physics, 'rthratenlw', rthratenlw)
+        call mpas_pool_get_array(tend_physics, 'rthratensw', rthratensw)
+        call mpas_pool_get_array(tend_physics, 'rthblten', rthblten)
        
         call mpas_pool_get_array(diag, 't_iso_levels', t_iso_levels)
         call mpas_pool_get_array(diag, 'z_iso_levels', z_iso_levels)
@@ -457,9 +461,9 @@ module isobaric_diagnostics
         call mpas_pool_get_array(diag, 'umeridional_isobaric', umeridional_isobaric)
         call mpas_pool_get_array(diag, 'qv_isobaric', qv_isobaric)
         call mpas_pool_get_array(diag, 'dtheta_dt_mp_isobaric', dtheta_dt_mp_isobaric)
-        call mpas_pool_get_array(tend_physics, 'rthratenlw_isobaric', rthratenlw_isobaric)
-        call mpas_pool_get_array(tend_physics, 'rthratensw_isobaric', rthratensw_isobaric)
-        call mpas_pool_get_array(tend_physics, 'rthblten_isobaric', rthblten_isobaric)
+        call mpas_pool_get_array(diag, 'rthratenlw_isobaric', rthratenlw_isobaric)
+        call mpas_pool_get_array(diag, 'rthratensw_isobaric', rthratensw_isobaric)
+        call mpas_pool_get_array(diag, 'rthblten_isobaric', rthblten_isobaric)
         call mpas_pool_get_array(diag, 'rh_isobaric', rh_isobaric)
         call mpas_pool_get_array(diag, 'w_isobaric', w_isobaric)
         call mpas_pool_get_array(diag, 'rhod_isobaric', rhod_isobaric)
