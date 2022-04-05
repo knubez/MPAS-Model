@@ -317,6 +317,7 @@ module isobaric_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: relhum, theta_m, vorticity
         real (kind=RKIND), dimension(:,:), pointer :: umeridional, uzonal, vvel
         real (kind=RKIND), dimension(:,:,:), pointer :: scalars
+        real (kind=RKIND), dimension(:,:), pointer :: rthratenlw, rthratensw, rthblten
        
         real (kind=RKIND), dimension(:), pointer :: t_iso_levels
         real (kind=RKIND), dimension(:), pointer :: z_iso_levels
