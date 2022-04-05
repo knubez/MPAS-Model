@@ -17,7 +17,7 @@ module isobaric_diagnostics
     type (MPAS_pool_type), pointer :: mesh
     type (MPAS_pool_type), pointer :: state
     type (MPAS_pool_type), pointer :: diag
-
+    type (MPAS_pool_type), pointer :: tend_physics
     type (MPAS_clock_type), pointer :: clock
 
     public :: isobaric_diagnostics_setup, &
@@ -70,6 +70,7 @@ module isobaric_diagnostics
         call mpas_pool_get_subpool(all_pools, 'mesh', mesh)
         call mpas_pool_get_subpool(all_pools, 'state', state)
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
+        call mpas_pool_get_subpool(all_pools, 'tend_physics', tend_physics)
    
     end subroutine isobaric_diagnostics_setup
 
@@ -280,19 +281,20 @@ module isobaric_diagnostics
         need_any_diags = need_any_diags .or. need_ivtv
 
         if (need_any_diags) then
-            call interp_diagnostics(mesh, state, 1, diag)
+            call interp_diagnostics(mesh, state, 1, diag, tend_physics)
         end if
    
     end subroutine isobaric_diagnostics_compute
 
 
    !==================================================================================================
-    subroutine interp_diagnostics(mesh, state, time_lev, diag)
+    subroutine interp_diagnostics(mesh, state, time_lev, diag, tend_physics)
    !==================================================================================================
 
        !input arguments:
         type (mpas_pool_type), intent(in)  :: mesh
         type (mpas_pool_type), intent(in) :: state
+        type (mpas_pool_type), intent(in) :: tend_physics
         integer, intent(in) :: time_lev              ! which time level to use from state
        
        !inout arguments:
@@ -302,7 +304,7 @@ module isobaric_diagnostics
         integer :: iCell,iVert,iVertD,k,kk
         integer, pointer :: nCells, nCellsSolve, nVertLevels, nVertices, vertexDegree!, nIsoLevelsT, nIsoLevelsZ, nIsoLevelsU
         integer :: nVertLevelsP1
-        integer, pointer :: index_qv, num_scalars, index_dtheta_dt_mp, index_rthratenlw, index_rthratensw, index_rthblten 
+        integer, pointer :: index_qv, num_scalars  
         integer, dimension(:,:), pointer :: cellsOnVertex
        
         type (field2DReal), pointer:: pressure_p_field
@@ -421,10 +423,6 @@ module isobaric_diagnostics
 !        call mpas_pool_get_dimension(mesh, 'nIsoLevelsZ', nIsoLevelsZ)
 !        call mpas_pool_get_dimension(mesh, 'nIsoLevelsU', nIsoLevelsU)
         call mpas_pool_get_dimension(state, 'index_qv', index_qv)
-        call mpas_pool_get_dimension(state, 'index_dtheta_dt_mp', index_dtheta_dt_mp)
-        call mpas_pool_get_dimension(state, 'index_rthratenlw', index_rthratenlw)
-        call mpas_pool_get_dimension(state, 'index_rthratensw', index_rthratensw)
-        call mpas_pool_get_dimension(state, 'index_rthblten', index_rthblten)
         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
        
         nVertLevelsP1 = nVertLevels + 1
@@ -459,9 +457,9 @@ module isobaric_diagnostics
         call mpas_pool_get_array(diag, 'umeridional_isobaric', umeridional_isobaric)
         call mpas_pool_get_array(diag, 'qv_isobaric', qv_isobaric)
         call mpas_pool_get_array(diag, 'dtheta_dt_mp_isobaric', dtheta_dt_mp_isobaric)
-        call mpas_pool_get_array(diag, 'rthratenlw_isobaric', rthratenlw_isobaric)
-        call mpas_pool_get_array(diag, 'rthratensw_isobaric', rthratensw_isobaric)
-        call mpas_pool_get_array(diag, 'rthblten_isobaric', rthblten_isobaric)
+        call mpas_pool_get_array(tend_physics, 'rthratenlw_isobaric', rthratenlw_isobaric)
+        call mpas_pool_get_array(tend_physics, 'rthratensw_isobaric', rthratensw_isobaric)
+        call mpas_pool_get_array(tend_physics, 'rthblten_isobaric', rthblten_isobaric)
         call mpas_pool_get_array(diag, 'rh_isobaric', rh_isobaric)
         call mpas_pool_get_array(diag, 'w_isobaric', w_isobaric)
         call mpas_pool_get_array(diag, 'rhod_isobaric', rhod_isobaric)
@@ -920,10 +918,63 @@ module isobaric_diagnostics
          
               do k=1,nIsoLevelsT
                  t_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+              end do 
+     
+            !!! Added by KMNO: to interpolate dtheta_dt_mp, rthratenlw, rthratensw, and rthblten to isobaric levels !!!!
+              do iCell=1,nCells
+              do k=1,nVertLevels
+                 kk = nVertLevels+1-k
+                 field_in(iCell,kk) = dtheta_dt_mp(k,iCell)
               end do
-            end if
-     
-     
+              end do
+
+              call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+
+              do k=1,nIsoLevelsT
+                 dtheta_dt_mp_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+              end do
+           
+ 
+              do iCell=1,nCells
+              do k=1,nVertLevels
+                 kk = nVertLevels+1-k
+                 field_in(iCell,kk) = rthratenlw(k,iCell)
+              end do
+              end do
+
+              call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+
+              do k=1,nIsoLevelsT
+                 rthratenlw_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+              end do
+
+              do iCell=1,nCells
+              do k=1,nVertLevels
+                 kk = nVertLevels+1-k
+                 field_in(iCell,kk) = rthratensw(k,iCell)
+              end do
+              end do
+
+              call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+
+              do k=1,nIsoLevelsT
+                 rthratensw_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+              end do
+
+              do iCell=1,nCells
+              do k=1,nVertLevels
+                 kk = nVertLevels+1-k
+                 field_in(iCell,kk) = rthblten(k,iCell)
+              end do
+              end do
+
+              call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+
+              do k=1,nIsoLevelsT
+                 rthblten_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+              end do
+            end if 
+
             !!!!!!!!!!! Calculate mean temperature in 500 hPa - 300 hPa layer !!!!!!!!!!!
      
             if (need_meanT_500_300) then
@@ -991,69 +1042,6 @@ module isobaric_diagnostics
                  rh_isobaric(k,1:nCells) = field_interp(1:nCells,k)
               end do
             end if
-
-
-            !!! Added by KMNO: to interpolate dtheta_dt_mp, rthratenlw, rthratensw, and rthblten to isobaric levels !!!!
-            if (need_dtheta_dt_mp_isobaric) then
-              do iCell=1,nCells
-              do k=1,nVertLevels
-                 kk = nVertLevels+1-k
-                 field_in(iCell,kk) = scalars(index_dtheta_dt_mp,k,iCell)
-              end do
-              end do
-
-              call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-
-              do k=1,nIsoLevelsT
-                 dtheta_dt_mp_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-              end do
-            end if
-
-            if (need_rthratenlw_isobaric) then
-              do iCell=1,nCells
-              do k=1,nVertLevels
-                 kk = nVertLevels+1-k
-                 field_in(iCell,kk) = scalars(index_rthratenlw,k,iCell)
-              end do
-              end do
-
-              call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-
-              do k=1,nIsoLevelsT
-                 rthratenlw_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-              end do
-            end if
-
-            if (need_rthratensw_isobaric) then
-              do iCell=1,nCells
-              do k=1,nVertLevels
-                 kk = nVertLevels+1-k
-                 field_in(iCell,kk) = scalars(index_rthratensw,k,iCell)
-              end do
-              end do
-
-              call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-
-              do k=1,nIsoLevelsT
-                 rthratensw_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-              end do
-            end if
-
-            if (need_rthblten_isobaric) then
-              do iCell=1,nCells
-              do k=1,nVertLevels
-                 kk = nVertLevels+1-k
-                 field_in(iCell,kk) = scalars(index_rthblten,k,iCell)
-              end do
-              end do
-
-              call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-
-              do k=1,nIsoLevelsT
-                 rthblten_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-              end do
-            end if
-
 
             !Added by RRB: calculate omega on mass points (need to interpolate w)
             if (need_w_isobaric) then
