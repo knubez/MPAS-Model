@@ -453,7 +453,8 @@ module isobaric_diagnostics
         call mpas_pool_get_array(tend_physics, 'rthratenlw', rthratenlw)
         call mpas_pool_get_array(tend_physics, 'rthratensw', rthratensw)
         call mpas_pool_get_array(tend_physics, 'rthblten', rthblten)
-       
+        call mpas_pool_get_array(diag, 'dtheta_dt_mp', dtheta_dt_mp)
+
         call mpas_pool_get_array(diag, 't_iso_levels', t_iso_levels)
         call mpas_pool_get_array(diag, 'z_iso_levels', z_iso_levels)
         call mpas_pool_get_array(diag, 'u_iso_levels', u_iso_levels)
