@@ -1,3 +1,8 @@
+> **Note**  
+> This is a branch of MPAS-v7.3 modified to output isobaric variables. For referencing purposes please cite:
+>
+> Núñez Ocasio, K. M., & Rios-Berrios, R. (2023). African easterly wave evolution and tropical cyclogenesis in a pre-Helene (2006) hindcast using the Model for Prediction Across Scales-Atmosphere (MPAS-A). Journal of Advances in Modeling Earth Systems, 15, e2022MS003181. https://doi. org/10.1029/2022MS003181
+
 MPAS-v7.3
 ====
 
