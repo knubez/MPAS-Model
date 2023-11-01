@@ -1,9 +1,9 @@
 > **Note**  
-> This is a branch of MPAS-v7.3 modified to output isobaric variables. For referencing purposes please cite:
+> This is a branch of MPAS-v8.0 modified to output isobaric variables. For referencing purposes please cite:
 >
 > Núñez Ocasio, K. M., & Rios-Berrios, R. (2023). African easterly wave evolution and tropical cyclogenesis in a pre-Helene (2006) hindcast using the Model for Prediction Across Scales-Atmosphere (MPAS-A). Journal of Advances in Modeling Earth Systems, 15, e2022MS003181. https://doi.org/10.1029/2022MS003181
 
-MPAS-v7.3
+MPAS-v8.0.1
 ====
 
 The Model for Prediction Across Scales (MPAS) is a collaborative project for
@@ -48,14 +48,17 @@ only described below the src directory.
 
 	MPAS-Model
 	├── src
-	│   ├── registry -- Code for building Registry.xml parser (Shared)
 	│   ├── driver -- Main driver for MPAS in stand-alone mode (Shared)
 	│   ├── external -- External software for MPAS (Shared)
 	│   ├── framework -- MPAS Framework (Includes DDT Descriptions, and shared routines. Shared)
 	│   ├── operators -- MPAS Opeartors (Includes Operators for MPAS meshes. Shared)
-	│   ├── inc -- Empty directory for include files that Registry generates (Shared)
+	│   ├── tools -- Empty directory for include files that Registry generates (Shared)
+	│   │   ├── registry -- Code for building Registry.xml parser (Shared)
+	│   │   └── input_gen -- Code for generating streams and namelist files (Shared)
 	│   └── core_* -- Individual model cores.
-        └────── testing_and_setup -- tools for setting up configurations and tests cases (Shared)
+	│       └── inc -- Empty directory for include files that Registry generates
+	├── testing_and_setup -- Tools for setting up configurations and test cases (Shared)
+	└── default_inputs -- Copies of default stream and namelists files (Shared)
 
 Model cores are typically developed independently. For information about
 building and running a particular core, please refer to that core's user's
