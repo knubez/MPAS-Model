@@ -26,7 +26,6 @@ module mpas_isobaric_diagnostics
     private
 
     logical :: need_mslp, &
-
                need_relhum_50, need_relhum_100, need_relhum_200, need_relhum_250, need_relhum_500, need_relhum_700, need_relhum_850, need_relhum_925, &
                need_dewpoint_50, need_dewpoint_100, need_dewpoint_200, need_dewpoint_250, need_dewpoint_500, need_dewpoint_700, need_dewpoint_850, need_dewpoint_925, &
                need_temp_50, need_temp_100, need_temp_200, need_temp_250, need_temp_500, need_temp_700, need_temp_850, need_temp_925, &
