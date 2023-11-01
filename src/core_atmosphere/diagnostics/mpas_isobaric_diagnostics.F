@@ -452,6 +452,7 @@ module mpas_isobaric_diagnostics
         real (kind=RKIND), dimension(:), pointer :: vorticity_50hPa
         real (kind=RKIND), dimension(:), pointer :: vorticity_100hPa
         real (kind=RKIND), dimension(:), pointer :: vorticity_200hPa
+        real (kind=RKIND), dimension(:), pointer :: vorticity_250hPa
         real (kind=RKIND), dimension(:), pointer :: vorticity_300hPa
         real (kind=RKIND), dimension(:), pointer :: vorticity_500hPa
         real (kind=RKIND), dimension(:), pointer :: vorticity_700hPa
@@ -603,6 +604,7 @@ module mpas_isobaric_diagnostics
         call mpas_pool_get_array(diag, 'vorticity_50hPa', vorticity_50hPa)
         call mpas_pool_get_array(diag, 'vorticity_100hPa', vorticity_100hPa)
         call mpas_pool_get_array(diag, 'vorticity_200hPa', vorticity_200hPa)
+        call mpas_pool_get_array(diag, 'vorticity_250hPa', vorticity_250hPa)
         call mpas_pool_get_array(diag, 'vorticity_300hPa', vorticity_300hPa)
         call mpas_pool_get_array(diag, 'vorticity_500hPa', vorticity_500hPa)
         call mpas_pool_get_array(diag, 'vorticity_700hPa', vorticity_700hPa)
@@ -931,8 +933,8 @@ module mpas_isobaric_diagnostics
 
                press_interp(iVert,1) = 50.0_RKIND
                press_interp(iVert,2) = 100.0_RKIND
-               press_interp(iVert,3) = 250.0_RKIND
-               press_interp(iVert,4) = 200.0_RKIND
+               press_interp(iVert,3) = 200.0_RKIND
+               press_interp(iVert,4) = 250.0_RKIND
                press_interp(iVert,5) = 300.0_RKIND
                press_interp(iVert,6) = 500.0_RKIND
                press_interp(iVert,7) = 700.0_RKIND
@@ -961,8 +963,8 @@ module mpas_isobaric_diagnostics
             vorticity_50hPa(1:nVertices) = field_interp(1:nVertices,1)
             vorticity_100hPa(1:nVertices) = field_interp(1:nVertices,2)
             vorticity_200hPa(1:nVertices) = field_interp(1:nVertices,3)
-            vorticity_300hPa(1:nVertices) = field_interp(1:nVertices,4)
-            vorticity_250hPa(1:nVertices) = field_interp(1:nVertices,5)
+            vorticity_250hPa(1:nVertices) = field_interp(1:nVertices,4)
+            vorticity_300hPa(1:nVertices) = field_interp(1:nVertices,5)
             vorticity_500hPa(1:nVertices) = field_interp(1:nVertices,6)
             vorticity_700hPa(1:nVertices) = field_interp(1:nVertices,7)
             vorticity_850hPa(1:nVertices) = field_interp(1:nVertices,8)
