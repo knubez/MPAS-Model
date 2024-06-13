@@ -1,4 +1,5 @@
- > **This is a branch of MPAS-v8.0 modified to output isobaric variables. If you use this version please make sure to cite:**
+> [!NOTE]
+> **This is a branch of MPAS-v8.0 modified to output isobaric variables. If you use this version please make sure to cite:**
 >
 > **Núñez Ocasio, K. M., Davis, C. A., Moon, Z. L., & Lawton, Q. A. (2024). Moisture dependence of an African easterly wave within the West African monsoon system. Journal of Advances in Modeling Earth Systems, 16, e2023MS004070. https://doi.org/10.1029/2023MS004070** 
 
