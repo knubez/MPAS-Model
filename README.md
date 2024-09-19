@@ -1,7 +1,11 @@
-> **Note**  
-> This is a branch of MPAS-v7.3 modified to output isobaric variables. For referencing purposes please cite:
+> [!NOTE]
+> This is a branch of MPAS-v7.3 modified to output isobaric variables. If you use this version please make sure to cite:
 >
-> Núñez Ocasio, K. M., & Rios-Berrios, R. (2023). African easterly wave evolution and tropical cyclogenesis in a pre-Helene (2006) hindcast using the Model for Prediction Across Scales-Atmosphere (MPAS-A). Journal of Advances in Modeling Earth Systems, 15, e2022MS003181. https://doi.org/10.1029/2022MS003181
+> * Núñez Ocasio, K. M., Davis, C. A., Moon, Z. L., & Lawton, Q. A. (2024). Moisture dependence of an African easterly wave within the West African monsoon system. Journal of Advances in Modeling Earth Systems, 16, e2023MS004070. https://doi.org/10.1029/2023MS004070
+>
+> An earlier paper used an earlier version of this branch with MPAS-v7.1 (commit here `0e43751`):
+>
+> * Núñez Ocasio, K. M., & Rios-Berrios, R. (2023). African easterly wave evolution and tropical cyclogenesis in a pre-Helene (2006) hindcast using the Model for Prediction Across Scales-Atmosphere (MPAS-A). Journal of Advances in Modeling Earth Systems, 15, e2022MS003181. https://doi.org/10.1029/2022MS003181 
 
 MPAS-v7.3
 ====
