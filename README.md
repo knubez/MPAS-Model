@@ -1,7 +1,7 @@
 > [!NOTE]
-> **This is a branch of MPAS-v8.0 modified to output isobaric variables. If you use this version please make sure to cite:**
+> This is a branch of MPAS-v8.0 modified to output isobaric variables. If you use this version please make sure to cite:
 >
-> **Núñez Ocasio, K. M., Davis, C. A., Moon, Z. L., & Lawton, Q. A. (2024). Moisture dependence of an African easterly wave within the West African monsoon system. Journal of Advances in Modeling Earth Systems, 16, e2023MS004070. https://doi.org/10.1029/2023MS004070** 
+> * Núñez Ocasio, K. M. & Dougherty, E. M. (2024). The Effect of Pseudo-Global Warming on the Weather-Climate System of Africa in a Convection-Permitting Model. ESS Open Archive. March 15, 2024. https://doi.org/10.22541/essoar.171052487.74353361/v1
 
 MPAS-v8.0.1
 ====
