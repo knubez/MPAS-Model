@@ -1,9 +1,9 @@
 > [!NOTE]
-> This is a branch of MPAS-v8.0 modified to output isobaric variables. If you use this version please make sure to cite:
+> This is a branch of MPAS-v8 modified to output isobaric variables. If you use this version please make sure to cite:
 >
 > * Núñez Ocasio, K. M. & Dougherty, E. M. (2024). The Effect of Pseudo-Global Warming on the Weather-Climate System of Africa in a Convection-Permitting Model. ESS Open Archive. March 15, 2024. https://doi.org/10.22541/essoar.171052487.74353361/v1
 
-MPAS-v8.0.1
+MPAS-v8.2.2
 ====
 
 The Model for Prediction Across Scales (MPAS) is a collaborative project for

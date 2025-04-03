@@ -19,6 +19,7 @@ module init_atm_cases
    use mpas_timer
    use mpas_init_atm_static
    use mpas_init_atm_surface
+   use mpas_init_atm_thompson_aerosols, only: init_atm_thompson_aerosols, init_atm_thompson_aerosols_lbc
    use mpas_atmphys_constants, only: svpt0,svp1,svp2,svp3
    use mpas_atmphys_functions
    use mpas_atmphys_initialize_real
@@ -72,10 +73,13 @@ module init_atm_cases
 
       character(len=StrKIND), pointer :: mminlu
       character(len=StrKIND), pointer :: xtime
+      real (kind=RKIND) :: dt
+      real (kind=RKIND), pointer :: Time
 
-      type (MPAS_Time_type)  :: curr_time, stop_time
+      type (MPAS_Time_type)  :: curr_time, stop_time, start_time
       type (MPAS_TimeInterval_type)  :: clock_interval, lbc_stream_interval, surface_stream_interval
-      character(len=StrKIND) :: timeString
+      type (MPAS_TimeInterval_type)  :: time_since_start
+      character(len=StrKIND) :: timeStart,timeString
 
       integer, pointer :: nCells
       integer, pointer :: nEdges
@@ -241,6 +245,7 @@ module init_atm_cases
                                    diag, diag_physics, block_ptr % dimensions, block_ptr % configs)
             
             if (config_met_interp) then
+               call init_atm_thompson_aerosols(block_ptr, mesh, block_ptr % configs, diag, state)
                call physics_initialize_real(mesh, fg, domain % dminfo, block_ptr % dimensions, block_ptr % configs)
             end if
 
@@ -297,6 +302,7 @@ module init_atm_cases
 
          curr_time = mpas_get_clock_time(domain % clock, MPAS_NOW)
          stop_time = mpas_get_clock_time(domain % clock, MPAS_STOP_TIME)
+         start_time = mpas_get_clock_time(domain % clock, MPAS_START_TIME)
 
          do while (curr_time <= stop_time)
 
@@ -309,6 +315,7 @@ module init_atm_cases
                call mpas_pool_get_subpool(block_ptr % structs, 'lbc_state', lbc_state)
 
                call mpas_pool_get_array(state, 'xtime', xtime)
+               call mpas_pool_get_array(state, 'Time', Time)
 
                call mpas_pool_get_dimension(block_ptr % dimensions, 'nCells', nCells)
                call mpas_pool_get_dimension(block_ptr % dimensions, 'nEdges', nEdges)
@@ -316,9 +323,15 @@ module init_atm_cases
 
                call mpas_get_time(curr_time, dateTimeString=timeString)
                xtime = timeString   ! Set field valid time, xtime, to the current time in the time loop
+               time_since_start = curr_time - start_time
+               call mpas_get_TimeInterval(time_since_start, dt=dt)
+               Time = dt
 
                call init_atm_case_lbc(timeString, block_ptr, mesh, nCells, nEdges, nVertLevels, fg, state, &
                                       diag, lbc_state, block_ptr % dimensions, block_ptr % configs)
+
+               call mpas_get_time(start_time, dateTimeString=timeStart)
+               call init_atm_thompson_aerosols_lbc(timeString, timeStart, block_ptr, mesh, diag, state, lbc_state)
 
                block_ptr => block_ptr % next
             end do

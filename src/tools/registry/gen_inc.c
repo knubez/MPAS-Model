@@ -15,15 +15,36 @@
 #include "fortprintf.h"
 #include "utility.h"
 
-#define STR(s) #s
-#define MACRO_TO_STR(s) STR(s)
+void process_core_macro(const char *macro, const char *val, va_list ap);
+void process_domain_macro(const char *macro, const char *val, va_list ap);
 
-void write_model_variables(ezxml_t registry){/*{{{*/
-	const char * suffix = MACRO_TO_STR(MPAS_NAMELIST_SUFFIX);
-	const char * exe_name = MACRO_TO_STR(MPAS_EXE_NAME);
-	const char * git_ver = MACRO_TO_STR(MPAS_GIT_VERSION);
-	const char * build_target = MACRO_TO_STR(MPAS_BUILD_TARGET);
+#define NUM_MODIFIED_ATTRS 2
+#define NUM_IGNORED_ATTRS 9
+#define NUM_NUMERIC_ATTRS 1
 
+static const char *NUMERIC_ATTRS[NUM_NUMERIC_ATTRS] = {
+	"missing_value"
+};
+
+static const char *ATTRS_TO_IGNORE[NUM_IGNORED_ATTRS] = {
+	"name",
+	"type",
+	"dimensions",
+	"persistence",
+	"packages",
+	"time_levs",
+	"name_in_code",
+	"array_group",
+	"default_value"
+};
+
+static const char *ATTRS_TO_MODIFY[NUM_MODIFIED_ATTRS][2] = {
+	{"description", "long_name"},
+	{"missing_value", "_FillValue"}
+};
+
+
+void write_model_variables(ezxml_t registry, int macro_count, const char **macros){/*{{{*/
 	const char *modelname, *corename, *version;
 	FILE *fd;
 
@@ -36,20 +57,43 @@ void write_model_variables(ezxml_t registry){/*{{{*/
 	fortprintf(fd, "       core %% modelName = '%s'\n", modelname);
 	fortprintf(fd, "       core %% coreName = '%s'\n", corename);
 	fortprintf(fd, "       core %% modelVersion = '%s'\n", version);
-	fortprintf(fd, "       core %% executableName = '%s'\n", exe_name);
-	fortprintf(fd, "       core %% git_version = '%s'\n", git_ver);
-	fortprintf(fd, "       core %% build_target = '%s'\n", build_target);
+
+	parse_macros(process_core_macro, macro_count, macros, fd);
 
 	fclose(fd);
 
 	fd = fopen("domain_variables.inc", "w+");
 
-	fortprintf(fd, "       domain %% namelist_filename = 'namelist.%s'\n", suffix);
-	fortprintf(fd, "       domain %% streams_filename = 'streams.%s'\n", suffix);
+	parse_macros(process_domain_macro, macro_count, macros, fd);
 
 	fclose(fd);
 
 }/*}}}*/
+
+
+void process_core_macro(const char *macro, const char *val, va_list ap)
+{
+	FILE *fd = va_arg(ap, FILE *);
+
+	if (strcmp(macro, "MPAS_EXE_NAME") == 0) {
+		fortprintf(fd, "       core %% executableName = '%s'\n", val);
+	} else if (strcmp(macro, "MPAS_GIT_VERSION") == 0) {
+		fortprintf(fd, "       core %% git_version = '%s'\n", val);
+	} else if (strcmp(macro, "MPAS_BUILD_TARGET") == 0) {
+		fortprintf(fd, "       core %% build_target = '%s'\n", val);
+	}
+}
+
+
+void process_domain_macro(const char *macro, const char *val, va_list ap)
+{
+	FILE *fd = va_arg(ap, FILE *);
+
+	if (strcmp(macro, "MPAS_NAMELIST_SUFFIX") == 0) {
+		fortprintf(fd, "       domain %% namelist_filename = 'namelist.%s'\n", val);
+		fortprintf(fd, "       domain %% streams_filename = 'streams.%s'\n", val);
+	}
+}
 
 
 int write_field_pointer_arrays(FILE* fd){/*{{{*/
@@ -83,6 +127,125 @@ int write_field_pointer_arrays(FILE* fd){/*{{{*/
 	return 0;
 }/*}}}*/
 
+// Checks for a string in a list of strings.
+// Returns the index of the string if it does exist in the array,
+// and -1 if it does not appear in the array.
+int find_string_in_array(char *input_string, const char *array[], size_t rows){
+	size_t i;
+	for (i = 0; i < rows; i++ ){
+		if (strcmp(input_string, array[i]) == 0){
+			return i;
+		}
+	}
+	return -1;
+}
+
+// Helper function to change attribute names in accordance with
+// "attrs_to_modify" within the "add_attribute_if_not_ignored" function
+const char * modify_attr(const char *attr, const char *array[][2], size_t rows) {
+	size_t i;
+	for (i = 0; i < rows; i++) {
+		if (strcmp(attr, array[i][0]) == 0) {
+			return array[i][1];
+		}
+	}
+	return attr;
+}
+
+// Doubles single quotes in stringIn, and places the results in the buffer
+// stringOut. stringOut should be large enough to store (len(stringIn) * 2 + 1)
+// characters. Returns 1 if the buffer is too small for the result. 
+int escape_quotes(const char * stringIn, char * result, size_t bufferSize){
+	size_t resultIndex = 0;
+	size_t i;
+	for (i = 0; i < strlen(stringIn) + 1; i++) {
+		if ( stringIn[i] == '\'' ) {
+			if (resultIndex >= bufferSize) return 1;
+			result[resultIndex++] = '\'';
+		}
+		if (resultIndex >= bufferSize) return 1;
+		result[resultIndex++] = stringIn[i];
+	}
+
+	return 0;
+}
+
+void add_attribute_if_not_ignored(FILE *fd, char *index, char *att_name, char *pointer_name_arr, char *att_value){	
+	char *format_string;
+
+	// Allocate buffers for escaping apostrophes, 
+	size_t value_buffer_size = 2 * strlen(att_value) + 1;
+	size_t name_buffer_size = 2 * strlen(att_name) + 1;
+	char *escaped_value = (char*)malloc(value_buffer_size);
+	char *escaped_name = (char*)malloc(name_buffer_size);
+
+	// Confirm that memory was allocated correctly
+	if (escaped_value == NULL) {
+		fprintf(stderr,
+			"ERROR: Failed to allocate memory while escaping quotes for att_value %s of att %s\n",
+			att_value,
+			att_name);
+		free(escaped_value);
+		free(escaped_name);
+		return;
+	} else if (escaped_name == NULL) {
+		fprintf(stderr,
+			"ERROR: Failed to allocate memory while escaping quotes for att_name of att %s\n",
+			att_name);
+		free(escaped_value);
+		free(escaped_name);
+		return;
+	}
+
+
+	// Return early if we want to ignore the attribute
+	if (find_string_in_array(att_name, ATTRS_TO_IGNORE, NUM_IGNORED_ATTRS) >= 0){
+		free(escaped_value);
+		free(escaped_name);
+		return;
+	}
+
+	// check if the attribute is numeric
+	if (find_string_in_array(att_name, NUMERIC_ATTRS, NUM_NUMERIC_ATTRS) >= 0){
+		format_string = "      call mpas_add_att(%s %% attLists(%s) %% attList, '%s', %s)\n";
+	}
+	// If it isn't numeric, make sure to wrap  att_value in quotes
+	else {
+		format_string = "      call mpas_add_att(%s %% attLists(%s) %% attList, '%s', '%s')\n";
+	}
+
+	// Escape the quotes
+	if ( escape_quotes(att_value, escaped_value, value_buffer_size) == 1){
+		fprintf(stderr,
+			"ERROR: Buffer too small to escape quotes for att_value %s of att %s\n",
+			att_value,
+			att_name);
+		free(escaped_value);
+		free(escaped_name);
+		return;
+	}
+
+	if ( escape_quotes(modify_attr(att_name, ATTRS_TO_MODIFY, NUM_MODIFIED_ATTRS),
+				   escaped_name,
+				   name_buffer_size) == 1) {
+		fprintf(stderr,
+			"ERROR: Buffer too small to escape quotes for att_name of att %s\n",
+			att_name);
+		free(escaped_value);
+		free(escaped_name);
+		return;
+	}
+	// Write the add_att code 
+	fortprintf(fd,
+		   format_string,
+		   pointer_name_arr,
+		   index,
+		   escaped_name,
+		   escaped_value);
+
+	free(escaped_value);
+	free(escaped_name);
+}
 
 int set_pointer_name(int type, int ndims, char *pointer_name, int time_levs){/*{{{*/
 
@@ -156,16 +319,18 @@ int add_package_to_list(const char * package, const char * package_list){/*{{{*/
 	token = strsep(&string, ";");
 
 	if(strcmp(package, token) == 0){
+		free(tofree);
 		return 0;
 	}
 
 	while( (token = strsep(&string, ";")) != NULL){
 		if(strcmp(package, token) == 0){
-
+			free(tofree);
 			return 0;
 		}
 	}
 
+	free(tofree);
 	return 1;
 }/*}}}*/
 
@@ -228,12 +393,14 @@ int build_struct_package_lists(ezxml_t currentPosition, char * out_packages){/*{
 				if(out_packages[0] == '\0'){
 					sprintf(out_packages, "%s", token);
 				} else if(add_package_to_list(token, out_packages)){
-					sprintf(out_packages, "%s;%s", out_packages, token);
+					strcat(out_packages, ";");
+					strcat(out_packages, token);
 				}
 
 				while( (token = strsep(&string, ";")) != NULL){
 					if(add_package_to_list(token, out_packages)){
-						sprintf(out_packages, "%s;%s", out_packages, token);
+						strcat(out_packages, ";");
+						strcat(out_packages, token);
 					}
 				}
 
@@ -252,12 +419,14 @@ int build_struct_package_lists(ezxml_t currentPosition, char * out_packages){/*{
 					if(out_packages[0] == '\0'){
 						sprintf(out_packages, "%s", token);
 					} else if(add_package_to_list(token, out_packages)){
-						sprintf(out_packages, "%s;%s", out_packages, token);
+						strcat(out_packages, ";");
+						strcat(out_packages, token);
 					}
 
 					while( (token = strsep(&string, ";")) != NULL){
 						if(add_package_to_list(token, out_packages)){
-							sprintf(out_packages, "%s;%s", out_packages, token);
+							strcat(out_packages, ";");
+							strcat(out_packages, token);
 						}
 					}
 
@@ -278,12 +447,14 @@ int build_struct_package_lists(ezxml_t currentPosition, char * out_packages){/*{
 				if(out_packages[0] == '\0'){
 					sprintf(out_packages, "%s", token);
 				} else if(add_package_to_list(token, out_packages)){
-					sprintf(out_packages, "%s;%s", out_packages, token);
+					strcat(out_packages, ";");
+					strcat(out_packages, token);
 				}
 
 				while( (token = strsep(&string, ";")) != NULL){
 					if(add_package_to_list(token, out_packages)){
-						sprintf(out_packages, "%s;%s", out_packages, token);
+						strcat(out_packages, ";");
+						strcat(out_packages, token);
 					}
 				}
 
@@ -648,7 +819,6 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 
 		if(in_subpool){
 			fortprintf(fd, "\n");
-			fortprintf(fd, "      allocate(recordPool)\n");
 			fortprintf(fd, "      call mpas_pool_create_pool(recordPool)\n");
 			fortprintf(fd, "      call mpas_pool_add_subpool(configPool, '%s', recordPool)\n", nmlrecname);
 			fortprintf(fd, "\n");
@@ -1016,7 +1186,7 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 	const char *structname, *structlevs, *structpackages;
 	const char *substructname;
 	const char *vararrname, *vararrtype, *vararrdims, *vararrpersistence, *vararrdefaultval, *vararrpackages, *vararrmissingval;
-	const char *varname, *varpersistence, *vartype, *vardims, *varunits, *vardesc, *vararrgroup, *varstreams, *vardefaultval, *varpackages;
+	const char *varname, *varpersistence, *vartype, *vardims, *vararrgroup, *varstreams, *vardefaultval, *varpackages;
 	const char *varname2, *vararrgroup2, *vararrname_in_code;
 	const char *varname_in_code;
 	const char *streamname, *streamname2;
@@ -1156,6 +1326,7 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 				while( (token = strsep(&string, ";")) != NULL){
 					fortprintf(fd, " .or. %sActive", token);
 				}
+				free(tofree);
 
 				fortprintf(fd, ") then\n");
 				snprintf(sub_spacing, 1024, "   ");
@@ -1221,6 +1392,7 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 							while( (token = strsep(&string, ";")) != NULL){
 								fortprintf(fd, " .or. %sActive", token);
 							}
+							free(tofree);
 
 							fortprintf(fd, ") then\n");
 							snprintf(sub_spacing, 1024, "   ");
@@ -1364,10 +1536,9 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 		fortprintf(fd, "      end do\n");
 
 		for(var_xml = ezxml_child(var_arr_xml, "var"); var_xml; var_xml = var_xml->next){
+			char **attr;
 			varname = ezxml_attr(var_xml, "name");
 			varname_in_code = ezxml_attr(var_xml, "name_in_code");
-			vardesc = ezxml_attr(var_xml, "description");
-			varunits = ezxml_attr(var_xml, "units");
 
 			if(!varname_in_code){
 				varname_in_code = ezxml_attr(var_xml, "name");
@@ -1377,40 +1548,18 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 			fortprintf(fd, "         call mpas_pool_get_dimension(newSubPool, 'index_%s', const_index)\n", varname_in_code);
 			fortprintf(fd, "      end if\n");
 			fortprintf(fd, "      if (const_index > 0) then\n", spacing);
-			if ( vardesc != NULL ) {
-				string = strdup(vardesc);
-				tofree = string;
 
-				token = strsep(&string, "'");
-				sprintf(temp_str, "%s", token);
-
-				while ( ( token = strsep(&string, "'") ) != NULL ) {
-					sprintf(temp_str, "%s''%s", temp_str, token);
+			for (attr = var_xml->attr; attr && *attr; attr+=2) {
+				// If the attr is "missing_value", ignore it and later on take
+				// the value from the var array.
+				if (strcmp(attr[0], "missing_value") == 0) {
+					printf("WARNING: Ignoring missing_value attribute for var %s defined in var_array %s\n", varname, vararrname);
+				} else {
+					add_attribute_if_not_ignored(fd, "const_index", attr[0], pointer_name_arr, attr[1]);
 				}
-
-				free(tofree);
-
-				fortprintf(fd, "         call mpas_add_att(%s %% attLists(const_index) %% attList, 'long_name', '%s')\n", pointer_name_arr, temp_str);
 			}
-
-			if ( varunits != NULL ) {
-				string = strdup(varunits);
-				tofree = string;
-
-				token = strsep(&string, "'");
-				sprintf(temp_str, "%s", token);
-
-				while ( ( token = strsep(&string, "'") ) != NULL ) {
-					sprintf(temp_str, "%s''%s", temp_str, token);
-				}
-
-				free(tofree);
-
-				fortprintf(fd, "         call mpas_add_att(%s %% attLists(const_index) %% attList, 'units', '%s')\n", pointer_name_arr, temp_str);
-			}
-
 			if ( vararrmissingval ) {
-				fortprintf(fd, "         call mpas_add_att(%s %% attLists(const_index) %% attList, '_FillValue', %s)\n", pointer_name_arr, missing_value);
+				add_attribute_if_not_ignored(fd, "const_index", "missing_value", pointer_name_arr, missing_value);
 			}
 			fortprintf(fd, "         %s %% missingValue = %s\n", pointer_name_arr, missing_value);
 			fortprintf(fd, "         %s %% constituentNames(const_index) = '%s'\n", pointer_name_arr, varname);
@@ -1435,6 +1584,7 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 		while( (token = strsep(&string, ";")) != NULL){
 			fortprintf(fd, " .or. %sActive", token);
 		}
+		free(tofree);
 		fortprintf(fd, ") then\n");
 	}
 
@@ -1467,7 +1617,7 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 	const char *structtimelevs, *vartimelevs;
 	const char *structname, *structlevs, *structpackages;
 	const char *substructname;
-	const char *varname, *varpersistence, *vartype, *vardims, *varunits, *vardesc, *vararrgroup, *varstreams, *vardefaultval, *varpackages, *varmissingval;
+	const char *varname, *varpersistence, *vartype, *vardims, *vararrgroup, *varstreams, *vardefaultval, *varpackages, *varmissingval;
 	const char *varname2, *vararrgroup2;
 	const char *varname_in_code;
 	const char *streamname, *streamname2;
@@ -1502,8 +1652,6 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 	vardefaultval = ezxml_attr(var_xml, "default_value");
 	vartimelevs = ezxml_attr(var_xml, "time_levs");
 	varname_in_code = ezxml_attr(var_xml, "name_in_code");
-	varunits = ezxml_attr(var_xml, "units");
-	vardesc = ezxml_attr(var_xml, "description");
 	varmissingval = ezxml_attr(var_xml, "missing_value");
 
 	if(!varname_in_code){
@@ -1548,6 +1696,7 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 	}
 
 	for(time_lev = 1; time_lev <= time_levs; time_lev++){
+		char **attr;
 		if (time_levs > 1) {
 			snprintf(pointer_name_arr, 1024, "%s(%d)", pointer_name, time_lev);
 		} else {
@@ -1603,41 +1752,14 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 		}
 		fortprintf(fd, "      allocate(%s %% attLists(1))\n", pointer_name_arr);
 		fortprintf(fd, "      allocate(%s %% attLists(1) %% attList)\n", pointer_name_arr);
-
-		if ( varunits != NULL ) {
-			string = strdup(varunits);
-			tofree = string;
-			token = strsep(&string, "'");
-
-			sprintf(temp_str, "%s", token);
-
-			while ( ( token = strsep(&string, "'") ) != NULL ) {
-				sprintf(temp_str, "%s''%s", temp_str, token);
+		for (attr = var_xml->attr; attr && *attr; attr+=2) {
+			// If the attr is "missing_value", use the specified fill value
+			// for real, integer, or char values. 
+			if (strcmp(attr[0], "missing_value") == 0) {
+				add_attribute_if_not_ignored(fd, "1", attr[0], pointer_name_arr, missing_value);
+			} else {
+				add_attribute_if_not_ignored(fd, "1", attr[0], pointer_name_arr, attr[1]);
 			}
-
-			free(tofree);
-
-			fortprintf(fd, "      call mpas_add_att(%s %% attLists(1) %% attList, 'units', '%s')\n", pointer_name_arr, temp_str);
-		}
-
-		if ( vardesc != NULL ) {
-			string = strdup(vardesc);
-			tofree = string;
-			token = strsep(&string, "'");
-
-			sprintf(temp_str, "%s", token);
-
-			while ( ( token = strsep(&string, "'") ) != NULL ) {
-				sprintf(temp_str, "%s''%s", temp_str, token);
-			}
-
-			free(tofree);
-
-			fortprintf(fd, "      call mpas_add_att(%s %% attLists(1) %% attList, 'long_name', '%s')\n", pointer_name_arr, temp_str);
-		}
-
-		if ( varmissingval != NULL ) {
-			fortprintf(fd, "      call mpas_add_att(%s %% attLists(1) %% attList, '_FillValue', %s)\n", pointer_name_arr, missing_value);
 		}
 		fortprintf(fd, "      %s %% missingValue = %s\n", pointer_name_arr, missing_value);
 
@@ -1659,6 +1781,7 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 		while( (token = strsep(&string, ";")) != NULL){
 			fortprintf(fd, " .or. %sActive", token);
 		}
+		free(tofree);
 
 		fortprintf(fd, ") then\n");
 	}
@@ -1780,7 +1903,6 @@ int parse_struct(FILE *fd, ezxml_t registry, ezxml_t superStruct, int subpool, c
 	fortprintf(fd, "\n");
 
 	// Setup new pool to be added into structPool
-	fortprintf(fd, "      allocate(newSubPool)\n");
 	fortprintf(fd, "      call mpas_pool_create_pool(newSubPool)\n");
 	fortprintf(fd, "      call mpas_pool_add_subpool(structPool, '%s', newSubPool)\n", structnameincode);
 	fortprintf(fd, "      call mpas_pool_add_subpool(block %% allStructs, '%s', newSubPool)\n", structname);
@@ -2410,5 +2532,3 @@ int parse_structs_from_registry(ezxml_t registry)/*{{{*/
 
 	return 0;
 }/*}}}*/
-
-
