@@ -1,7 +1,7 @@
 > [!NOTE]
 > This is a branch of MPAS-v8.0 modified to output isobaric variables. If you use this version please make sure to cite:
 >
-> * Núñez Ocasio, K. M. & Dougherty, E. M. (2024). The Effect of Pseudo-Global Warming on the Weather-Climate System of Africa in a Convection-Permitting Model. ESS Open Archive. March 15, 2024. https://doi.org/10.22541/essoar.171052487.74353361/v1
+> * Núñez Ocasio, K. M., & Dougherty, E. M. (2024). The effect of pseudo-global warming on the weather-climate system of Africa in a convection-permitting model. _Geophysical Research Letters_, 51, e2024GL112341. https://doi.org/10.1029/2024GL112341
 
 MPAS-v8.0.1
 ====
