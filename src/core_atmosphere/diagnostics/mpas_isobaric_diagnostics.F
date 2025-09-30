@@ -351,7 +351,7 @@ module mpas_isobaric_diagnostics
        
        !local variables:
         integer :: iCell,iVert,iVertD,k,kk
-        integer, pointer :: nCells, nCellsSolve, nVertLevels, nVertices, vertexDegree!, nIsoLevelsT, nIsoLevelsZ, nIsoLevelsU
+        integer, pointer :: nCells, nCellsSolve, nVertLevels, nVertices, vertexDegree, nIsoLevelsT, nIsoLevelsZ, nIsoLevelsU
         integer :: nVertLevelsP1
         integer, pointer :: index_qv, num_scalars
         integer, dimension(:,:), pointer :: cellsOnVertex
@@ -465,7 +465,6 @@ module mpas_isobaric_diagnostics
         real (kind=RKIND), dimension(:), pointer :: mslp
         !----Added by RRB for TAHPEX: integrated vapor transport----!
         real (kind=RKIND), dimension(:), pointer :: ivtu, ivtv
-        integer :: nIsoLevelsU, nIsoLevelsT, nIsoLevelsZ      
         !-----------------------------------------------------------! 
         real (kind=RKIND), dimension(:,:), allocatable :: pressure, pressureCp1, pressure2, pressure_v, temperature
         real (kind=RKIND), dimension(:,:), allocatable :: dewpoint
@@ -486,9 +485,9 @@ module mpas_isobaric_diagnostics
         call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
         call mpas_pool_get_dimension(mesh, 'nVertices', nVertices)
         call mpas_pool_get_dimension(mesh, 'vertexDegree', vertexDegree)
-!        call mpas_pool_get_dimension(mesh, 'nIsoLevelsT', nIsoLevelsT)
-!        call mpas_pool_get_dimension(mesh, 'nIsoLevelsZ', nIsoLevelsZ)
-!        call mpas_pool_get_dimension(mesh, 'nIsoLevelsU', nIsoLevelsU)
+        call mpas_pool_get_dimension(mesh, 'nIsoLevelsT', nIsoLevelsT)
+        call mpas_pool_get_dimension(mesh, 'nIsoLevelsZ', nIsoLevelsZ)
+        call mpas_pool_get_dimension(mesh, 'nIsoLevelsU', nIsoLevelsU)
         call mpas_pool_get_dimension(state, 'index_qv', index_qv)
         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
        
