@@ -3,8 +3,8 @@
 >
 > * Núñez Ocasio, K. M. & Dougherty, E. M. (2024). The Effect of Pseudo-Global Warming on the Weather-Climate System of Africa in a Convection-Permitting Model. ESS Open Archive. March 15, 2024. https://doi.org/10.22541/essoar.171052487.74353361/v1
 
-MPAS-v8.2.2
-====
+MPAS-v8.3.1
+===========
 
 The Model for Prediction Across Scales (MPAS) is a collaborative project for
 developing atmosphere, ocean, and other earth-system simulation components for
