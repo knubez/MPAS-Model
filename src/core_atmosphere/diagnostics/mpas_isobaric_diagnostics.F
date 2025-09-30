@@ -621,34 +621,36 @@ module mpas_isobaric_diagnostics
         if(.not.allocated(dewpoint) ) allocate(dewpoint(nVertLevels,nCells)   )
        
         if (need_t_isobaric) then
-            !Changed by RRB to add more isobaric levels
-             t_iso_levels(:) = (/10000.0, 12500.0, 15000.0, 17500.0, &
-                                 20000.0, 22500.0, 25000.0, &
-                                 30000.0, 35000.0, &
-                                 40000.0, 45000.0, &
-                                 50000.0, 55000.0, &
-                                 60000.0, 65000.0, &
-                                 70000.0, 75000.0, 77500.0, &
-                                 80000.0, 82500.0, 85000.0, 87500.0, & 
-                                 90000.0, 92500.0, 95000.0, 97500.0, 100000.0/)
-             nIsoLevelsT = size(t_iso_levels)
-!            t_iso_levels(1) = 1000.0
-!            t_iso_levels(2) = 2000.0
-!            t_iso_levels(3) = 3000.0
-!            t_iso_levels(4) = 5000.0
-!            t_iso_levels(5) = 7000.0
-!            t_iso_levels(6) = 10000.0
-!            t_iso_levels(7) = 15000.0
-!            t_iso_levels(8) = 20000.0
-!            t_iso_levels(9) = 25000.0
-!            t_iso_levels(10) = 30000.0
-!            t_iso_levels(11) = 40000.0
-!            t_iso_levels(12) = 50000.0
-!            t_iso_levels(13) = 60000.0
-!            t_iso_levels(14) = 70000.0
-!            t_iso_levels(15) = 85000.0
-!            t_iso_levels(16) = 92500.0
-!            t_iso_levels(17) = 100000.0
+            t_iso_levels(:) = [ &
+                10000._RKIND, &
+                12500._RKIND, &
+                15000._RKIND, &
+                17500._RKIND, &
+                20000._RKIND, &
+                22500._RKIND, &
+                25000._RKIND, &
+                30000._RKIND, &
+                35000._RKIND, &
+                40000._RKIND, &
+                45000._RKIND, &
+                50000._RKIND, &
+                55000._RKIND, &
+                60000._RKIND, &
+                65000._RKIND, &
+                70000._RKIND, &
+                75000._RKIND, &
+                77500._RKIND, &
+                80000._RKIND, &
+                82500._RKIND, &
+                85000._RKIND, &
+                87500._RKIND, &
+                90000._RKIND, &
+                92500._RKIND, &
+                95000._RKIND, &
+                97500._RKIND, &
+                100000._RKIND &
+            ]
+            nIsoLevelsT = size(t_iso_levels)
         end if
        
         if (need_z_isobaric) then
