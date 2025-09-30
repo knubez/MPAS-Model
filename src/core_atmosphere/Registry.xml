@@ -989,19 +989,6 @@
 			<var name="initial_time"/>
 			<var name="xtime"/>
 			<var name="Time"/>
-			<var name="olrtoa"/>
-			<var name="rainc"/>
-			<var name="rainnc"/>
-			<var name="refl10cm_max"/>
-			<var name="refl10cm_1km"/>
-			<var name="refl10cm_1km_max"/>
-               <var name="refl10cm"/>
-			<var name="precipw"/>
-			<var name="u10"/>
-			<var name="v10"/>
-			<var name="q2"/>
-			<var name="t2m"/>
-			<var name="th2m"/>
 
                         <!-- Begin isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
 			<var name="mslp"/>

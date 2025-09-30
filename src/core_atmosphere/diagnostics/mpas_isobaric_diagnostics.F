@@ -353,7 +353,7 @@ module mpas_isobaric_diagnostics
         integer :: iCell,iVert,iVertD,k,kk
         integer, pointer :: nCells, nCellsSolve, nVertLevels, nVertices, vertexDegree!, nIsoLevelsT, nIsoLevelsZ, nIsoLevelsU
         integer :: nVertLevelsP1
-        integer, pointer :: index_qv, num_scalars  
+        integer, pointer :: index_qv, num_scalars
         integer, dimension(:,:), pointer :: cellsOnVertex
        
         type (field2DReal), pointer:: pressure_p_field
@@ -930,7 +930,6 @@ module mpas_isobaric_diagnostics
             if(.not.allocated(field_interp)) allocate(field_interp(nVertices,nIntP) )
             if(.not.allocated(press_interp)) allocate(press_interp(nVertices,nIntP) )
             do iVert = 1, nVertices
-
                press_interp(iVert,1) = 50.0_RKIND
                press_interp(iVert,2) = 100.0_RKIND
                press_interp(iVert,3) = 200.0_RKIND
@@ -958,7 +957,6 @@ module mpas_isobaric_diagnostics
             enddo
             enddo
             call interp_tofixed_pressure(nVertices,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
-
             vorticity_50hPa(1:nVertices) = field_interp(1:nVertices,1)
             vorticity_100hPa(1:nVertices) = field_interp(1:nVertices,2)
             vorticity_200hPa(1:nVertices) = field_interp(1:nVertices,3)
@@ -1096,7 +1094,7 @@ module mpas_isobaric_diagnostics
             !!!!!!!!!!! Calculate mean temperature in 500 hPa - 300 hPa layer !!!!!!!!!!!
      
             if (need_meanT_500_300) then
-                call compute_layer_mean(meanT_500_300, 50000.0, 30000.0, field_in, press_in)
+                call compute_layer_mean(meanT_500_300, 50000.0_RKIND, 30000.0_RKIND, field_in, press_in)
             end if
 
             !!!!!!!!!!! Added by RRB: interpolate zonal & meridional winds to isobaric levels !!!!!!!!!!!
@@ -1200,7 +1198,6 @@ module mpas_isobaric_diagnostics
             deallocate(press_in)
             deallocate(press_interp)
         end if
-
     
         !!!!!!!!!!! Additional height levels for vortex tracking !!!!!!!!!!!
         if (need_z_isobaric) then
@@ -1234,22 +1231,6 @@ module mpas_isobaric_diagnostics
                  z_isobaric(k,1:nCells) = field_interp(1:nCells,k)
               end do
             end if
-
-!            if (need_omg_isobaric) then
-!              do iCell=1,nCells
-!              do k=1,nVertLevelsP1
-!                 kk = nVertLevelsP1+1-k
-!                 field_in(iCell,kk) = rho(k,iCell)*vvel(k,iCell)*gravity
-!              end do
-!              end do
-     
-!              call interp_tofixed_pressure(nCells, nVertLevelsP1, nIsoLevelsZ, press_in, field_in, press_interp, field_interp)
-     
-!              do k=1,nIsoLevelsZ
-!                 omg_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-!              end do
-!            end if
-
      
             deallocate(field_in)
             deallocate(field_interp)
@@ -1456,11 +1437,6 @@ module mpas_isobaric_diagnostics
       
           t_surf(icol) = t_at_pconst*(p(1,icol)/p_at_pconst)**(gamma*rr/grav)
           t_msl(icol) = t_at_pconst+gamma*z_at_pconst
-      !   if (icol.eq.500) then
-      !      write(0,*) plo,phi,tlo,thi,zlo,zhi,p_at_pconst,t_at_pconst,z_at_pconst
-      !      write(0,*) t_surf(icol),t_msl(icol),level(icol),klo,khi
-      !      write(0,*) height(klo,icol),height(khi,icol),height(khi+1,icol)
-      !   endif
       
        end do
       
