@@ -243,7 +243,7 @@
         <var name="w_isobaric"       type="real" dimensions="nIsoLevelsU nCells Time" units="m s^{-1}"
              description="Vertical wind interpolated to isobaric surfaces defined in u_iso_levels"/>
 
-        <var name="rhod_isobaric"       type="real" dimensions="nIsoLevelsT nCells Time" units="kg/m^3"
+        <var name="rhod_isobaric"       type="real" dimensions="nIsoLevelsT nCells Time" units="kg m^{-3}"
              description="dry air density interpolated to isobaric surfaces defined in t_iso_levels"/>
 
         <var name="meanT_500_300"    type="real" dimensions="nCells Time" units="K"
