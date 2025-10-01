@@ -695,10 +695,10 @@ module mpas_isobaric_diagnostics
         k = nVertLevelsP1
         do iCell = 1, nCells
            z0 = height(k,iCell)
-           z1 = 0.5*(height(k,iCell)+height(k-1,iCell)) 
-           z2 = 0.5*(height(k-1,iCell)+height(k-2,iCell))
+           z1 = 0.5_RKIND * (height(k,iCell)+height(k-1,iCell))
+           z2 = 0.5_RKIND * (height(k-1,iCell)+height(k-2,iCell))
            w1 = (z0-z2)/(z1-z2)
-           w2 = 1.-w1
+           w2 = 1._RKIND - w1
            !use log of pressure to avoid occurrences of negative top-of-the-model pressure.
            pressure2(k,iCell) = exp(w1*log(pressure(k-1,iCell))+w2*log(pressure(k-2,iCell)))
         enddo
@@ -715,10 +715,10 @@ module mpas_isobaric_diagnostics
         k = 1
         do iCell = 1, nCells
            z0 = height(k,iCell)
-           z1 = 0.5*(height(k,iCell)+height(k+1,iCell)) 
-           z2 = 0.5*(height(k+1,iCell)+height(k+2,iCell))
+           z1 = 0.5_RKIND * (height(k,iCell)+height(k+1,iCell))
+           z2 = 0.5_RKIND * (height(k+1,iCell)+height(k+2,iCell))
            w1 = (z0-z2)/(z1-z2)
-           w2 = 1.-w1
+           w2 = 1._RKIND - w1
            ! pressure2(k,iCell) = w1*pressure(k,iCell)+w2*pressure(k+1,iCell)
            !
            ! switch to use ln(pressure) for more accurate vertical interpolation, WCS 20230407
@@ -750,7 +750,7 @@ module mpas_isobaric_diagnostics
 
                 ! Dewpoint temperature following Bolton (1980)
                 dewpoint(k,iCell) = (243.5_RKIND * log(evp/6.112_RKIND)) / (17.67_RKIND - log(evp/6.112_RKIND))
-                dewpoint(k,iCell) = dewpoint(k,iCell) + 273.15
+                dewpoint(k,iCell) = dewpoint(k,iCell) + 273.15_RKIND
             enddo
             enddo
         end if
@@ -1045,8 +1045,8 @@ module mpas_isobaric_diagnostics
 
         !----Added by RRB for TAHPEX: integrated vapor transport----!
         if (need_ivtu .or. need_ivtv) then
-          ivtu(:) = 0.0_RKIND
-          ivtv(:) = 0.0_RKIND
+          ivtu(:) = 0._RKIND
+          ivtv(:) = 0._RKIND
           do iCell=1,nCellsSolve
             do k=1,nVertLevels
               ivtu(iCell) = ivtu(iCell)+( scalars(index_qv,k,iCell)*uzonal(k,iCell)*rho(k,iCell)*( height(k+1,iCell)-height(k,iCell) ) )
@@ -1071,7 +1071,7 @@ module mpas_isobaric_diagnostics
             do iCell=1,nCells
             do k=1,nVertLevels
                kk = nVertLevels+1-k
-               press_in(iCell,kk) = pressure(k,iCell) * 100.0
+               press_in(iCell,kk) = pressure(k,iCell) * 100._RKIND
             end do
             end do
      
@@ -1219,7 +1219,7 @@ module mpas_isobaric_diagnostics
               do iCell=1,nCells
               do k=1,nVertLevels
                  kk = nVertLevels+1-k
-                 field_in(iCell,kk) = ( 0.5*( vvel(max(k-1,1),iCell) + vvel(min(k+1,nVertLevelsP1),iCell) ) )
+                 field_in(iCell,kk) = ( 0.5_RKIND * ( vvel(max(k-1,1),iCell) + vvel(min(k+1,nVertLevelsP1),iCell) ) )
               end do
               end do
               
@@ -1268,7 +1268,7 @@ module mpas_isobaric_diagnostics
             do iCell=1,nCells
             do k=1,nVertLevelsP1
                kk = nVertLevelsP1+1-k
-               press_in(iCell,kk) = pressure2(k,iCell) * 100.0
+               press_in(iCell,kk) = pressure2(k,iCell) * 100._RKIND
             end do
             end do
      
