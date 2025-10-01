@@ -1089,14 +1089,20 @@ module mpas_isobaric_diagnostics
             !enddo
         end if
 
-        if (need_ivtu .or. need_ivtv) then
+        if (need_ivtu) then
             ivtu(:) = 0._RKIND
-            ivtv(:) = 0._RKIND
             do iCell = 1, nCellsSolve
             do k = 1, nVertLevels
                ivtu(iCell) = ivtu(iCell) + ( &
                  scalars(index_qv,k,iCell) * uzonal(k,iCell) * rho(k,iCell) &
                  * (height(k+1,iCell) - height(k,iCell)))
+            end do
+            end do
+        end if
+        if (need_ivtv) then
+            ivtv(:) = 0._RKIND
+            do iCell = 1, nCellsSolve
+            do k = 1, nVertLevels
                ivtv(iCell) = ivtv(iCell) + ( &
                  scalars(index_qv,k,iCell) * umeridional(k,iCell) * rho(k,iCell) &
                  * (height(k+1,iCell) - height(k,iCell)))
