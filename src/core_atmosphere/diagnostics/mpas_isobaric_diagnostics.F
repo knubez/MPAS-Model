@@ -478,6 +478,48 @@ module mpas_isobaric_diagnostics
         real (kind=RKIND) :: w1,w2,z0,z1,z2
         real (kind=RKIND), dimension(:,:), allocatable :: field_in,press_in
         real (kind=RKIND), dimension(:,:), allocatable :: field_interp,press_interp
+
+        !> ERA5 pressure levels (Pa), in order of increasing pressure (decreasing altitude).
+        !> There are 37 total from 1 hPa to 1000 hPa, but we start at 100 hPa.
+        real (kind=RKIND), parameter :: era5_pressure_levels(27) = [ &
+            ! 1._RKIND, &
+            ! 2._RKIND, &
+            ! 3._RKIND, &
+            ! 5._RKIND, &
+            ! 7._RKIND, &
+            ! 10._RKIND, &
+            ! 20._RKIND, &
+            ! 30._RKIND, &
+            ! 50._RKIND, &
+            ! 70._RKIND, &
+            100._RKIND, &
+            125._RKIND, &
+            150._RKIND, &
+            175._RKIND, &
+            200._RKIND, &
+            225._RKIND, &
+            250._RKIND, &
+            300._RKIND, &
+            350._RKIND, &
+            400._RKIND, &
+            450._RKIND, &
+            500._RKIND, &
+            550._RKIND, &
+            600._RKIND, &
+            650._RKIND, &
+            700._RKIND, &
+            750._RKIND, &
+            775._RKIND, &
+            800._RKIND, &
+            825._RKIND, &
+            850._RKIND, &
+            875._RKIND, &
+            900._RKIND, &
+            925._RKIND, &
+            950._RKIND, &
+            975._RKIND, &
+            1000._RKIND &
+        ] * 100._RKIND ! hPa -> Pa
         
        !--------------------------------------------------------------------------------------------------
        
@@ -625,56 +667,17 @@ module mpas_isobaric_diagnostics
         if(.not.allocated(dewpoint) ) allocate(dewpoint(nVertLevels,nCells)   )
        
         if (need_t_isobaric) then
-            ! ERA5 pressure levels - 37 total from 1000 hPa to 1 hPa
-            t_iso_levels(:) = [ &
-                ! 1._RKIND, &
-                ! 2._RKIND, &
-                ! 3._RKIND, &
-                ! 5._RKIND, &
-                ! 7._RKIND, &
-                ! 10._RKIND, &
-                ! 20._RKIND, &
-                ! 30._RKIND, &
-                ! 50._RKIND, &
-                ! 70._RKIND, &
-                100._RKIND, &
-                125._RKIND, &
-                150._RKIND, &
-                175._RKIND, &
-                200._RKIND, &
-                225._RKIND, &
-                250._RKIND, &
-                300._RKIND, &
-                350._RKIND, &
-                400._RKIND, &
-                450._RKIND, &
-                500._RKIND, &
-                550._RKIND, &
-                600._RKIND, &
-                650._RKIND, &
-                700._RKIND, &
-                750._RKIND, &
-                775._RKIND, &
-                800._RKIND, &
-                825._RKIND, &
-                850._RKIND, &
-                875._RKIND, &
-                900._RKIND, &
-                925._RKIND, &
-                950._RKIND, &
-                975._RKIND, &
-                1000._RKIND &
-            ] * 100._RKIND ! hPa -> Pa
+            t_iso_levels(:) = era5_pressure_levels
             nIsoLevelsT = size(t_iso_levels)
         end if
        
         if (need_z_isobaric) then
-            z_iso_levels = t_iso_levels
+            z_iso_levels(:) = era5_pressure_levels
             nIsoLevelsZ = size(z_iso_levels)
         end if
 
         if (need_u_isobaric) then
-            u_iso_levels = t_iso_levels
+            u_iso_levels(:) = era5_pressure_levels
             nIsoLevelsU = size(u_iso_levels)
         end if
        
