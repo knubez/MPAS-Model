@@ -620,35 +620,46 @@ module mpas_isobaric_diagnostics
         if(.not.allocated(dewpoint) ) allocate(dewpoint(nVertLevels,nCells)   )
        
         if (need_t_isobaric) then
+            ! ERA5 pressure levels - 37 total from 1000 hPa to 1 hPa
             t_iso_levels(:) = [ &
-                10000._RKIND, &
-                12500._RKIND, &
-                15000._RKIND, &
-                17500._RKIND, &
-                20000._RKIND, &
-                22500._RKIND, &
-                25000._RKIND, &
-                30000._RKIND, &
-                35000._RKIND, &
-                40000._RKIND, &
-                45000._RKIND, &
-                50000._RKIND, &
-                55000._RKIND, &
-                60000._RKIND, &
-                65000._RKIND, &
-                70000._RKIND, &
-                75000._RKIND, &
-                77500._RKIND, &
-                80000._RKIND, &
-                82500._RKIND, &
-                85000._RKIND, &
-                87500._RKIND, &
-                90000._RKIND, &
-                92500._RKIND, &
-                95000._RKIND, &
-                97500._RKIND, &
-                100000._RKIND &
-            ]
+                ! 1._RKIND, &
+                ! 2._RKIND, &
+                ! 3._RKIND, &
+                ! 5._RKIND, &
+                ! 7._RKIND, &
+                ! 10._RKIND, &
+                ! 20._RKIND, &
+                ! 30._RKIND, &
+                ! 50._RKIND, &
+                ! 70._RKIND, &
+                100._RKIND, &
+                125._RKIND, &
+                150._RKIND, &
+                175._RKIND, &
+                200._RKIND, &
+                225._RKIND, &
+                250._RKIND, &
+                300._RKIND, &
+                350._RKIND, &
+                400._RKIND, &
+                450._RKIND, &
+                500._RKIND, &
+                550._RKIND, &
+                600._RKIND, &
+                650._RKIND, &
+                700._RKIND, &
+                750._RKIND, &
+                775._RKIND, &
+                800._RKIND, &
+                825._RKIND, &
+                850._RKIND, &
+                875._RKIND, &
+                900._RKIND, &
+                925._RKIND, &
+                950._RKIND, &
+                975._RKIND, &
+                1000._RKIND &
+            ] * 100._RKIND ! hPa -> Pa
             nIsoLevelsT = size(t_iso_levels)
         end if
        
