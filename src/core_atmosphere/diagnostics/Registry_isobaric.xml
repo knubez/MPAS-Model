@@ -243,6 +243,9 @@
         <var name="w_isobaric"       type="real" dimensions="nIsoLevelsU nCells Time" units="m s^{-1}"
              description="Vertical wind interpolated to isobaric surfaces defined in u_iso_levels"/>
 
+        <var name="vorticity_isobaric"       type="real" dimensions="nIsoLevelsU nVertices Time" units="s^{-1}"
+             description="Relative vorticity vertically interpolated to isobaric surfaces defined in u_iso_levels"/>
+
         <var name="rhod_isobaric"       type="real" dimensions="nIsoLevelsT nCells Time" units="kg m^{-3}"
              description="dry air density interpolated to isobaric surfaces defined in t_iso_levels"/>
 

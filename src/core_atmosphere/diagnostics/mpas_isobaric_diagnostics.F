@@ -35,7 +35,8 @@ module mpas_isobaric_diagnostics
                need_w_50, need_w_100, need_w_200, need_w_250, need_w_500, need_w_700, need_w_850, need_w_925, &
                need_vorticity_50, need_vorticity_100, need_vorticity_200, need_vorticity_250, need_vorticity_500, need_vorticity_700, need_vorticity_850, need_vorticity_925, &
                need_t_isobaric, need_z_isobaric, need_u_isobaric, need_qv_isobaric, need_dtheta_dt_mp_isobaric, need_rthratenlw_isobaric, &
-               need_rthratensw_isobaric, need_rthblten_isobaric, need_rh_isobaric, need_w_isobaric, need_meanT_500_300, need_rhod_isobaric
+               need_rthratensw_isobaric, need_rthblten_isobaric, need_rh_isobaric, need_w_isobaric, need_meanT_500_300, need_rhod_isobaric, &
+               need_vorticity_isobaric
 
     logical :: need_temp, need_relhum, need_dewpoint, need_w, need_uzonal, need_umeridional, need_vorticity, need_height
     !!! Added by RRB for TAHPEX: integrated vapor transport !!!
@@ -306,6 +307,8 @@ module mpas_isobaric_diagnostics
         need_any_diags = need_any_diags .or. need_z_isobaric
         need_u_isobaric = MPAS_field_will_be_written('uzonal_isobaric')
         need_any_diags = need_any_diags .or. need_u_isobaric
+        need_vorticity_isobaric = MPAS_field_will_be_written('vorticity_isobaric')
+        need_any_diags = need_any_diags .or. need_vorticity_isobaric
         need_qv_isobaric = MPAS_field_will_be_written('qv_isobaric')
         need_any_diags = need_any_diags .or. need_qv_isobaric
         need_dtheta_dt_mp_isobaric = MPAS_field_will_be_written('dtheta_dt_mp_isobaric')
@@ -376,6 +379,7 @@ module mpas_isobaric_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: z_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: uzonal_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: umeridional_isobaric
+        real (kind=RKIND), dimension(:,:), pointer :: vorticity_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: qv_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: rthratenlw_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: rthratensw_isobaric
@@ -526,6 +530,7 @@ module mpas_isobaric_diagnostics
         call mpas_pool_get_array(diag, 'z_isobaric', z_isobaric)
         call mpas_pool_get_array(diag, 'uzonal_isobaric', uzonal_isobaric)
         call mpas_pool_get_array(diag, 'umeridional_isobaric', umeridional_isobaric)
+        call mpas_pool_get_array(diag, 'vorticity_isobaric', vorticity_isobaric)
         call mpas_pool_get_array(diag, 'qv_isobaric', qv_isobaric)
         call mpas_pool_get_array(diag, 'dtheta_dt_mp_isobaric', dtheta_dt_mp_isobaric)
         call mpas_pool_get_array(diag, 'rthratenlw_isobaric', rthratenlw_isobaric)
@@ -982,6 +987,46 @@ module mpas_isobaric_diagnostics
        
             if(allocated(field_in    )) deallocate(field_in)
             if(allocated(press_in    )) deallocate(press_in)
+        end if
+
+        if(allocated(field_interp)) deallocate(field_interp)
+        if(allocated(press_interp)) deallocate(press_interp)
+
+        if (need_vorticity_isobaric) then
+            allocate(field_in(nVertices, nVertLevels))
+            allocate(press_in(nVertices, nVertLevels))
+            allocate(field_interp(nVertices, nIsoLevelsU))
+            allocate(press_interp(nVertices, nIsoLevelsU))
+
+            do k = 1, nIsoLevelsU
+               press_interp(:,k) = u_iso_levels(k)
+            end do
+
+            do iVert = 1, nVertices
+            do k = 1, nVertLevels
+               kk = nVertLevels+1-k
+               press_in(iVert,kk) = pressure_v(k,iVert)
+            end do
+            end do
+
+            ! Note vorticity is on the dual mesh (vertices)
+            do iVert = 1, nVertices
+            do k = 1, nVertLevels
+               kk = nVertLevels+1-k
+               field_in(iVert,kk) = vorticity(k,iVert)
+            end do
+            end do
+
+            call interp_tofixed_pressure(nVertices, nVertLevels, nIsoLevelsU, press_in, field_in, press_interp, field_interp)
+
+            do k=1,nIsoLevelsU
+               vorticity_isobaric(k,1:nVertices) = field_interp(1:nVertices,k)
+            end do
+
+            deallocate(field_in)
+            deallocate(field_interp)
+            deallocate(press_in)
+            deallocate(press_interp)
         end if
 
         if(allocated(pressureCp1) ) deallocate(pressureCp1 )
