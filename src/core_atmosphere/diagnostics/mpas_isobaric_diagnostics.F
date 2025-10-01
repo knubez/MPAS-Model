@@ -33,7 +33,7 @@ module mpas_isobaric_diagnostics
                need_uzonal_50, need_uzonal_100, need_uzonal_200, need_uzonal_250, need_uzonal_500, need_uzonal_700, need_uzonal_850, need_uzonal_925, &
                need_umeridional_50, need_umeridional_100, need_umeridional_200, need_umeridional_250, need_umeridional_500, need_umeridional_700, need_umeridional_850, need_umeridional_925, &
                need_w_50, need_w_100, need_w_200, need_w_250, need_w_500, need_w_700, need_w_850, need_w_925, &
-               need_vorticity_50, need_vorticity_100, need_vorticity_200, need_vorticity_300, need_vorticity_500, need_vorticity_700, need_vorticity_850, need_vorticity_925, &
+               need_vorticity_50, need_vorticity_100, need_vorticity_200, need_vorticity_250, need_vorticity_500, need_vorticity_700, need_vorticity_850, need_vorticity_925, &
                need_t_isobaric, need_z_isobaric, need_u_isobaric, need_qv_isobaric, need_dtheta_dt_mp_isobaric, need_rthratenlw_isobaric, &
                need_rthratensw_isobaric, need_rthblten_isobaric, need_rh_isobaric, need_w_isobaric, need_meanT_500_300, need_rhod_isobaric
 
@@ -285,9 +285,9 @@ module mpas_isobaric_diagnostics
         need_vorticity_200 = MPAS_field_will_be_written('vorticity_200hPa')
         need_vorticity = need_vorticity .or. need_vorticity_200
         need_any_diags = need_any_diags .or. need_vorticity_200
-        need_vorticity_300 = MPAS_field_will_be_written('vorticity_300hPa')
-        need_vorticity = need_vorticity .or. need_vorticity_300
-        need_any_diags = need_any_diags .or. need_vorticity_300
+        need_vorticity_250 = MPAS_field_will_be_written('vorticity_250hPa')
+        need_vorticity = need_vorticity .or. need_vorticity_250
+        need_any_diags = need_any_diags .or. need_vorticity_250
         need_vorticity_500 = MPAS_field_will_be_written('vorticity_500hPa')
         need_vorticity = need_vorticity .or. need_vorticity_500
         need_any_diags = need_any_diags .or. need_vorticity_500
@@ -452,7 +452,7 @@ module mpas_isobaric_diagnostics
         real (kind=RKIND), dimension(:), pointer :: vorticity_50hPa
         real (kind=RKIND), dimension(:), pointer :: vorticity_100hPa
         real (kind=RKIND), dimension(:), pointer :: vorticity_200hPa
-        real (kind=RKIND), dimension(:), pointer :: vorticity_300hPa
+        real (kind=RKIND), dimension(:), pointer :: vorticity_250hPa
         real (kind=RKIND), dimension(:), pointer :: vorticity_500hPa
         real (kind=RKIND), dimension(:), pointer :: vorticity_700hPa
         real (kind=RKIND), dimension(:), pointer :: vorticity_850hPa
@@ -602,7 +602,7 @@ module mpas_isobaric_diagnostics
         call mpas_pool_get_array(diag, 'vorticity_50hPa', vorticity_50hPa)
         call mpas_pool_get_array(diag, 'vorticity_100hPa', vorticity_100hPa)
         call mpas_pool_get_array(diag, 'vorticity_200hPa', vorticity_200hPa)
-        call mpas_pool_get_array(diag, 'vorticity_300hPa', vorticity_300hPa)
+        call mpas_pool_get_array(diag, 'vorticity_250hPa', vorticity_250hPa)
         call mpas_pool_get_array(diag, 'vorticity_500hPa', vorticity_500hPa)
         call mpas_pool_get_array(diag, 'vorticity_700hPa', vorticity_700hPa)
         call mpas_pool_get_array(diag, 'vorticity_850hPa', vorticity_850hPa)
@@ -970,7 +970,7 @@ module mpas_isobaric_diagnostics
             vorticity_50hPa(1:nVertices) = field_interp(1:nVertices,1)
             vorticity_100hPa(1:nVertices) = field_interp(1:nVertices,2)
             vorticity_200hPa(1:nVertices) = field_interp(1:nVertices,3)
-            vorticity_300hPa(1:nVertices) = field_interp(1:nVertices,4)
+            vorticity_250hPa(1:nVertices) = field_interp(1:nVertices,4)
             vorticity_500hPa(1:nVertices) = field_interp(1:nVertices,5)
             vorticity_700hPa(1:nVertices) = field_interp(1:nVertices,6)
             vorticity_850hPa(1:nVertices) = field_interp(1:nVertices,7)

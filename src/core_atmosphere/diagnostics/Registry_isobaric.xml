@@ -195,8 +195,8 @@
         <var name="vorticity_200hPa" type="real" dimensions="nVertices Time" units="s^{-1}"
              description="Relative vorticity vertically interpolated to 200 hPa"/>
 
-        <var name="vorticity_300hPa" type="real" dimensions="nVertices Time" units="s^{-1}"
-             description="Relative vorticity vertically interpolated to 300 hPa"/>
+        <var name="vorticity_250hPa" type="real" dimensions="nVertices Time" units="s^{-1}"
+             description="Relative vorticity vertically interpolated to 250 hPa"/>
 
         <var name="vorticity_500hPa" type="real" dimensions="nVertices Time" units="s^{-1}"
              description="Relative vorticity vertically interpolated to 500 hPa"/>

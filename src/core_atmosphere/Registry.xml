@@ -1051,7 +1051,7 @@
 			<var name="vorticity_50hPa"/>
 			<var name="vorticity_100hPa"/>
 			<var name="vorticity_200hPa"/>
-			<var name="vorticity_300hPa"/>
+			<var name="vorticity_250hPa"/>
 			<var name="vorticity_500hPa"/>
 			<var name="vorticity_700hPa"/>
 			<var name="vorticity_850hPa"/>
