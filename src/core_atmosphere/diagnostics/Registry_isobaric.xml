@@ -229,13 +229,13 @@
              description="Potential temperature heating rate from microphysics interpolated to isobaric surfaces defined in t_iso_levels"/>
 
         <var name="rthratenlw_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="K s^{-1}"
-             description="tendency of potential temperature due to long wave radiation interpolated to isobaric surfaces defined in t_iso_levels"/>
+             description="Tendency of potential temperature due to long wave radiation interpolated to isobaric surfaces defined in t_iso_levels"/>
 
         <var name="rthratensw_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="K s^{-1}" 
-             description="tendency of potential temperature due to short wave radiation interpolated to isobaric surfaces defined in t_iso_levels"/>
+             description="Tendency of potential temperature due to short wave radiation interpolated to isobaric surfaces defined in t_iso_levels"/>
 
         <var name="rthblten_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="K s^{-1}" 
-             description="tendency of potential temperature due to pbl processes interpolated to isobaric surfaces defined in t_iso_levels"/>
+             description="Tendency of potential temperature due to pbl processes interpolated to isobaric surfaces defined in t_iso_levels"/>
 
         <var name="rh_isobaric"       type="real" dimensions="nIsoLevelsT nCells Time" units="%"
              description="Relative humidity interpolated to isobaric surfaces defined in t_iso_levels"/>
@@ -247,7 +247,7 @@
              description="Relative vorticity vertically interpolated to isobaric surfaces defined in u_iso_levels"/>
 
         <var name="rhod_isobaric"       type="real" dimensions="nIsoLevelsT nCells Time" units="kg m^{-3}"
-             description="dry air density interpolated to isobaric surfaces defined in t_iso_levels"/>
+             description="Dry air density interpolated to isobaric surfaces defined in t_iso_levels"/>
 
         <var name="meanT_500_300"    type="real" dimensions="nCells Time" units="K"
              description="Mean temperature in the 300 hPa - 500 hPa layer"/>
@@ -262,8 +262,8 @@
              description="Levels for vertical interpolation of winds to isobaric surfaces"/>
 
         <var name="ivtu" type="real" dimensions="nCells Time" units="kg m^{-1}"
-             description="zonal component of integrated vapor transport"/>
+             description="Zonal component of integrated vapor transport"/>
 
         <var name="ivtv" type="real" dimensions="nCells Time" units="kg m^{-1}"
-             description="meridional component of integrated vapor transport"/>
+             description="Meridional component of integrated vapor transport"/>
 </var_struct>
