@@ -950,6 +950,43 @@ module mpas_isobaric_diagnostics
 
         if(allocated(field_interp)) deallocate(field_interp)
         if(allocated(press_interp)) deallocate(press_interp)
+
+        if (need_w_isobaric) then
+            allocate(field_in(nVertices, nVertLevelsP1))
+            allocate(press_in(nVertices, nVertLevelsP1))
+            allocate(field_interp(nVertices, nIsoLevelsU))
+            allocate(press_interp(nVertices, nIsoLevelsU))
+
+            do k = 1, nIsoLevelsU
+               press_interp(:,k) = u_iso_levels(k)
+            end do
+
+            do iCell = 1, nCells
+            do k = 1, nVertLevelsP1
+               kk = nVertLevelsP1 + 1 - k
+               press_in(iCell,kk) = pressure2(k,iCell)
+            enddo
+            enddo
+
+            do iCell = 1, nCells
+            do k = 1, nVertLevelsP1
+               kk = nVertLevelsP1 + 1 - k
+               field_in(iCell,kk) = vvel(k,iCell)
+            end do
+            end do
+            call interp_tofixed_pressure(nCells, nVertLevelsP1, nIsoLevelsU, press_in, field_in, press_interp, field_interp)
+            do k = 1, nIsoLevelsU
+               w_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+            end do
+
+            deallocate(field_in)
+            deallocate(field_interp)
+            deallocate(press_in)
+            deallocate(press_interp)
+        end if
+
+        if(allocated(field_interp)) deallocate(field_interp)
+        if(allocated(press_interp)) deallocate(press_interp)
        
         if (NEED_VORTICITY) then
            !interpolation to fixed pressure levels for fields located at cell vertices and at mass points:
@@ -1255,7 +1292,7 @@ module mpas_isobaric_diagnostics
 
 
         !!!!!!!!!!! u_iso_levels cell variables !!!!!!!!!!!
-        if (need_uzonal_isobaric .or. need_umeridional_isobaric .or. need_w_isobaric) then
+        if (need_uzonal_isobaric .or. need_umeridional_isobaric) then
 
             allocate(field_in(nCells, nVertLevels))
             allocate(press_in(nCells, nVertLevels))
@@ -1296,19 +1333,6 @@ module mpas_isobaric_diagnostics
                 call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsU, press_in, field_in, press_interp, field_interp)
                 do k = 1, nIsoLevelsU
                    umeridional_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
-            end if
-
-            if (need_w_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = 0.5_RKIND * (vvel(max(k-1,1),iCell) + vvel(min(k+1,nVertLevelsP1),iCell))
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsU, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsU
-                   w_isobaric(k,1:nCells) = field_interp(1:nCells,k)
                 end do
             end if
 
