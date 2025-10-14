@@ -31,6 +31,7 @@
         integer, dimension(:,:,:), CONTIGUOUS pointer :: recvListDst => null()  ! (maxNRecvList,nHalos,nRecvEndpts)
         integer, dimension(:), CONTIGUOUS pointer :: unpackOffsets => null()    ! (nRecvEndpts)
 
+        real (kind=RKIND), dimension(:), pointer :: r1arr => null()      ! Pointer to field array, only used internally
         real (kind=RKIND), dimension(:,:), pointer :: r2arr => null()    ! Pointer to field array, only used internally
         real (kind=RKIND), dimension(:,:,:), pointer :: r3arr => null()  ! Pointer to field array, only used internally
     end type mpas_halo_field
@@ -47,7 +48,11 @@
         integer :: nGroupSendNeighbors = MPAS_HALO_INVALID                ! Number of unique neighbors that we send to
         integer :: groupSendBufSize = MPAS_HALO_INVALID                   ! Total number of elements to be sent in a group exchange
         real (kind=RKIND), dimension(:), pointer :: sendBuf => null()     ! Segmented buffer used for outgoing messages
-        integer, dimension(:), pointer :: sendRequests => null()          ! Used internally - MPI request IDs
+#ifdef MPAS_USE_MPI_F08
+        type (MPI_Request), dimension(:), pointer :: sendRequests => null() ! Used internally - MPI request IDs
+#else
+        integer, dimension(:), pointer :: sendRequests => null() ! Used internally - MPI request IDs
+#endif
         integer, dimension(:,:), pointer :: groupPackOffsets => null()    ! Offsets into sendBuf for each neighbor and each field
                                                                           !     dimensioned (nGroupSendNeighbors, nFields)
         integer, dimension(:), pointer :: groupSendNeighbors => null()    ! List of neighbors we send to
@@ -60,7 +65,11 @@
         integer :: nGroupRecvNeighbors = MPAS_HALO_INVALID                ! Number of unique neighbors that we recv from
         integer :: groupRecvBufSize = MPAS_HALO_INVALID                   ! Total number of elements to be recvd in a group exchange
         real (kind=RKIND), dimension(:), pointer :: recvBuf => null()     ! Segmented buffer used for incoming messages
-        integer, dimension(:), pointer :: recvRequests => null()          ! Used internally - MPI request IDs
+#ifdef MPAS_USE_MPI_F08
+        type (MPI_Request), dimension(:), pointer :: recvRequests => null() ! Used internally - MPI request IDs
+#else
+        integer, dimension(:), pointer :: recvRequests => null() ! Used internally - MPI request IDs
+#endif
         integer, dimension(:,:), pointer :: groupUnpackOffsets => null()  ! Offsets into recvBuf for each neighbor and each field
                                                                           !     dimensioned (nGroupRecvNeighbors, nFields)
         integer, dimension(:), pointer :: groupRecvNeighbors => null()    ! List of neighbors we recv from

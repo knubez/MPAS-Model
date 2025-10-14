@@ -9,21 +9,54 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <regex.h>
 #include "ezxml.h"
 #include "registry_types.h"
 #include "gen_inc.h"
 #include "fortprintf.h"
 #include "utility.h"
 
-#define STR(s) #s
-#define MACRO_TO_STR(s) STR(s)
+#ifdef MPAS_CAM_DYCORE
+#include <ctype.h>
+#endif
 
-void write_model_variables(ezxml_t registry){/*{{{*/
-	const char * suffix = MACRO_TO_STR(MPAS_NAMELIST_SUFFIX);
-	const char * exe_name = MACRO_TO_STR(MPAS_EXE_NAME);
-	const char * git_ver = MACRO_TO_STR(MPAS_GIT_VERSION);
-	const char * build_target = MACRO_TO_STR(MPAS_BUILD_TARGET);
+void process_core_macro(const char *macro, const char *val, va_list ap);
+void process_domain_macro(const char *macro, const char *val, va_list ap);
+char * nmlopt_from_str(regex_t *preg, const char *str, regoff_t *next);
+const char * nmlopt_type(ezxml_t registry, const char *nmlopt);
+int package_logic_routine(FILE *fd, regex_t *preg, const char *corename,
+                          const char *packagename, const char *packagewhen,
+                          ezxml_t registry);
+void gen_pkg_debug_info(FILE *fd, regex_t *preg, ezxml_t registry,
+                        const char *packagename, const char *packagewhen);
 
+#define NUM_MODIFIED_ATTRS 2
+#define NUM_IGNORED_ATTRS 9
+#define NUM_NUMERIC_ATTRS 1
+
+static const char *NUMERIC_ATTRS[NUM_NUMERIC_ATTRS] = {
+	"missing_value"
+};
+
+static const char *ATTRS_TO_IGNORE[NUM_IGNORED_ATTRS] = {
+	"name",
+	"type",
+	"dimensions",
+	"persistence",
+	"packages",
+	"time_levs",
+	"name_in_code",
+	"array_group",
+	"default_value"
+};
+
+static const char *ATTRS_TO_MODIFY[NUM_MODIFIED_ATTRS][2] = {
+	{"description", "long_name"},
+	{"missing_value", "_FillValue"}
+};
+
+
+void write_model_variables(ezxml_t registry, int macro_count, const char **macros){/*{{{*/
 	const char *modelname, *corename, *version;
 	FILE *fd;
 
@@ -36,20 +69,43 @@ void write_model_variables(ezxml_t registry){/*{{{*/
 	fortprintf(fd, "       core %% modelName = '%s'\n", modelname);
 	fortprintf(fd, "       core %% coreName = '%s'\n", corename);
 	fortprintf(fd, "       core %% modelVersion = '%s'\n", version);
-	fortprintf(fd, "       core %% executableName = '%s'\n", exe_name);
-	fortprintf(fd, "       core %% git_version = '%s'\n", git_ver);
-	fortprintf(fd, "       core %% build_target = '%s'\n", build_target);
+
+	parse_macros(process_core_macro, macro_count, macros, fd);
 
 	fclose(fd);
 
 	fd = fopen("domain_variables.inc", "w+");
 
-	fortprintf(fd, "       domain %% namelist_filename = 'namelist.%s'\n", suffix);
-	fortprintf(fd, "       domain %% streams_filename = 'streams.%s'\n", suffix);
+	parse_macros(process_domain_macro, macro_count, macros, fd);
 
 	fclose(fd);
 
 }/*}}}*/
+
+
+void process_core_macro(const char *macro, const char *val, va_list ap)
+{
+	FILE *fd = va_arg(ap, FILE *);
+
+	if (strcmp(macro, "MPAS_EXE_NAME") == 0) {
+		fortprintf(fd, "       core %% executableName = '%s'\n", val);
+	} else if (strcmp(macro, "MPAS_GIT_VERSION") == 0) {
+		fortprintf(fd, "       core %% git_version = '%s'\n", val);
+	} else if (strcmp(macro, "MPAS_BUILD_TARGET") == 0) {
+		fortprintf(fd, "       core %% build_target = '%s'\n", val);
+	}
+}
+
+
+void process_domain_macro(const char *macro, const char *val, va_list ap)
+{
+	FILE *fd = va_arg(ap, FILE *);
+
+	if (strcmp(macro, "MPAS_NAMELIST_SUFFIX") == 0) {
+		fortprintf(fd, "       domain %% namelist_filename = 'namelist.%s'\n", val);
+		fortprintf(fd, "       domain %% streams_filename = 'streams.%s'\n", val);
+	}
+}
 
 
 int write_field_pointer_arrays(FILE* fd){/*{{{*/
@@ -83,6 +139,125 @@ int write_field_pointer_arrays(FILE* fd){/*{{{*/
 	return 0;
 }/*}}}*/
 
+// Checks for a string in a list of strings.
+// Returns the index of the string if it does exist in the array,
+// and -1 if it does not appear in the array.
+int find_string_in_array(char *input_string, const char *array[], size_t rows){
+	size_t i;
+	for (i = 0; i < rows; i++ ){
+		if (strcmp(input_string, array[i]) == 0){
+			return i;
+		}
+	}
+	return -1;
+}
+
+// Helper function to change attribute names in accordance with
+// "attrs_to_modify" within the "add_attribute_if_not_ignored" function
+const char * modify_attr(const char *attr, const char *array[][2], size_t rows) {
+	size_t i;
+	for (i = 0; i < rows; i++) {
+		if (strcmp(attr, array[i][0]) == 0) {
+			return array[i][1];
+		}
+	}
+	return attr;
+}
+
+// Doubles single quotes in stringIn, and places the results in the buffer
+// stringOut. stringOut should be large enough to store (len(stringIn) * 2 + 1)
+// characters. Returns 1 if the buffer is too small for the result. 
+int escape_quotes(const char * stringIn, char * result, size_t bufferSize){
+	size_t resultIndex = 0;
+	size_t i;
+	for (i = 0; i < strlen(stringIn) + 1; i++) {
+		if ( stringIn[i] == '\'' ) {
+			if (resultIndex >= bufferSize) return 1;
+			result[resultIndex++] = '\'';
+		}
+		if (resultIndex >= bufferSize) return 1;
+		result[resultIndex++] = stringIn[i];
+	}
+
+	return 0;
+}
+
+void add_attribute_if_not_ignored(FILE *fd, char *index, char *att_name, char *pointer_name_arr, char *att_value){	
+	char *format_string;
+
+	// Allocate buffers for escaping apostrophes, 
+	size_t value_buffer_size = 2 * strlen(att_value) + 1;
+	size_t name_buffer_size = 2 * strlen(att_name) + 1;
+	char *escaped_value = (char*)malloc(value_buffer_size);
+	char *escaped_name = (char*)malloc(name_buffer_size);
+
+	// Confirm that memory was allocated correctly
+	if (escaped_value == NULL) {
+		fprintf(stderr,
+			"ERROR: Failed to allocate memory while escaping quotes for att_value %s of att %s\n",
+			att_value,
+			att_name);
+		free(escaped_value);
+		free(escaped_name);
+		return;
+	} else if (escaped_name == NULL) {
+		fprintf(stderr,
+			"ERROR: Failed to allocate memory while escaping quotes for att_name of att %s\n",
+			att_name);
+		free(escaped_value);
+		free(escaped_name);
+		return;
+	}
+
+
+	// Return early if we want to ignore the attribute
+	if (find_string_in_array(att_name, ATTRS_TO_IGNORE, NUM_IGNORED_ATTRS) >= 0){
+		free(escaped_value);
+		free(escaped_name);
+		return;
+	}
+
+	// check if the attribute is numeric
+	if (find_string_in_array(att_name, NUMERIC_ATTRS, NUM_NUMERIC_ATTRS) >= 0){
+		format_string = "      call mpas_add_att(%s %% attLists(%s) %% attList, '%s', %s)\n";
+	}
+	// If it isn't numeric, make sure to wrap  att_value in quotes
+	else {
+		format_string = "      call mpas_add_att(%s %% attLists(%s) %% attList, '%s', '%s')\n";
+	}
+
+	// Escape the quotes
+	if ( escape_quotes(att_value, escaped_value, value_buffer_size) == 1){
+		fprintf(stderr,
+			"ERROR: Buffer too small to escape quotes for att_value %s of att %s\n",
+			att_value,
+			att_name);
+		free(escaped_value);
+		free(escaped_name);
+		return;
+	}
+
+	if ( escape_quotes(modify_attr(att_name, ATTRS_TO_MODIFY, NUM_MODIFIED_ATTRS),
+				   escaped_name,
+				   name_buffer_size) == 1) {
+		fprintf(stderr,
+			"ERROR: Buffer too small to escape quotes for att_name of att %s\n",
+			att_name);
+		free(escaped_value);
+		free(escaped_name);
+		return;
+	}
+	// Write the add_att code 
+	fortprintf(fd,
+		   format_string,
+		   pointer_name_arr,
+		   index,
+		   escaped_name,
+		   escaped_value);
+
+	free(escaped_value);
+	free(escaped_name);
+}
 
 int set_pointer_name(int type, int ndims, char *pointer_name, int time_levs){/*{{{*/
 
@@ -156,16 +331,18 @@ int add_package_to_list(const char * package, const char * package_list){/*{{{*/
 	token = strsep(&string, ";");
 
 	if(strcmp(package, token) == 0){
+		free(tofree);
 		return 0;
 	}
 
 	while( (token = strsep(&string, ";")) != NULL){
 		if(strcmp(package, token) == 0){
-
+			free(tofree);
 			return 0;
 		}
 	}
 
+	free(tofree);
 	return 1;
 }/*}}}*/
 
@@ -228,12 +405,14 @@ int build_struct_package_lists(ezxml_t currentPosition, char * out_packages){/*{
 				if(out_packages[0] == '\0'){
 					sprintf(out_packages, "%s", token);
 				} else if(add_package_to_list(token, out_packages)){
-					sprintf(out_packages, "%s;%s", out_packages, token);
+					strcat(out_packages, ";");
+					strcat(out_packages, token);
 				}
 
 				while( (token = strsep(&string, ";")) != NULL){
 					if(add_package_to_list(token, out_packages)){
-						sprintf(out_packages, "%s;%s", out_packages, token);
+						strcat(out_packages, ";");
+						strcat(out_packages, token);
 					}
 				}
 
@@ -252,12 +431,14 @@ int build_struct_package_lists(ezxml_t currentPosition, char * out_packages){/*{
 					if(out_packages[0] == '\0'){
 						sprintf(out_packages, "%s", token);
 					} else if(add_package_to_list(token, out_packages)){
-						sprintf(out_packages, "%s;%s", out_packages, token);
+						strcat(out_packages, ";");
+						strcat(out_packages, token);
 					}
 
 					while( (token = strsep(&string, ";")) != NULL){
 						if(add_package_to_list(token, out_packages)){
-							sprintf(out_packages, "%s;%s", out_packages, token);
+							strcat(out_packages, ";");
+							strcat(out_packages, token);
 						}
 					}
 
@@ -278,12 +459,14 @@ int build_struct_package_lists(ezxml_t currentPosition, char * out_packages){/*{
 				if(out_packages[0] == '\0'){
 					sprintf(out_packages, "%s", token);
 				} else if(add_package_to_list(token, out_packages)){
-					sprintf(out_packages, "%s;%s", out_packages, token);
+					strcat(out_packages, ";");
+					strcat(out_packages, token);
 				}
 
 				while( (token = strsep(&string, ";")) != NULL){
 					if(add_package_to_list(token, out_packages)){
-						sprintf(out_packages, "%s;%s", out_packages, token);
+						strcat(out_packages, ";");
+						strcat(out_packages, token);
 					}
 				}
 
@@ -525,8 +708,12 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 	ezxml_t nmlrecs_xml, nmlopt_xml;
 
 	const char *const_core;
-	const char *nmlrecname, *nmlrecindef, *nmlrecinsub;
-	const char *nmloptname, *nmlopttype, *nmloptval, *nmloptunits, *nmloptdesc, *nmloptposvals, *nmloptindef;
+	const char *original_nmlrecname, *nmlrecindef, *nmlrecinsub;
+	const char *original_nmloptname, *nmlopttype, *nmloptval, *nmloptunits, *nmloptdesc, *nmloptposvals, *nmloptindef;
+
+	// Fortran variable names have a length limit of 63 characters. + 1 for the terminating null character.
+	char nmlrecname[64];
+	char nmloptname[64];
 
 	char pool_name[1024];
 	char core_string[1024];
@@ -572,7 +759,9 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 
 	// Parse Namelist Records
 	for (nmlrecs_xml = ezxml_child(registry, "nml_record"); nmlrecs_xml; nmlrecs_xml = nmlrecs_xml->next){
-		nmlrecname = ezxml_attr(nmlrecs_xml, "name");
+		original_nmlrecname = ezxml_attr(nmlrecs_xml, "name");
+		mangle_name(nmlrecname, sizeof(nmlrecname), original_nmlrecname);
+
 		nmlrecindef = ezxml_attr(nmlrecs_xml, "in_defaults");
 		nmlrecinsub = ezxml_attr(nmlrecs_xml, "in_subpool");
 
@@ -606,7 +795,9 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 
 		// Define variable definitions prior to reading the namelist in.
 		for (nmlopt_xml = ezxml_child(nmlrecs_xml, "nml_option"); nmlopt_xml; nmlopt_xml = nmlopt_xml->next){
-			nmloptname = ezxml_attr(nmlopt_xml, "name");
+			original_nmloptname = ezxml_attr(nmlopt_xml, "name");
+			mangle_name(nmloptname, sizeof(nmloptname), original_nmloptname);
+
 			nmlopttype = ezxml_attr(nmlopt_xml, "type");
 			nmloptval = ezxml_attr(nmlopt_xml, "default_value");
 			nmloptunits = ezxml_attr(nmlopt_xml, "units");
@@ -638,7 +829,9 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 		// Define the namelist block, to read the namelist record in.
 		fortprintf(fd, "      namelist /%s/ &\n", nmlrecname);
 		for (nmlopt_xml = ezxml_child(nmlrecs_xml, "nml_option"); nmlopt_xml; nmlopt_xml = nmlopt_xml->next){
-			nmloptname = ezxml_attr(nmlopt_xml, "name");
+			original_nmloptname = ezxml_attr(nmlopt_xml, "name");
+			mangle_name(nmloptname, sizeof(nmloptname), original_nmloptname);
+
 			if(nmlopt_xml->next){
 				fortprintf(fd, "         %s, &\n", nmloptname);
 			} else {
@@ -648,7 +841,6 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 
 		if(in_subpool){
 			fortprintf(fd, "\n");
-			fortprintf(fd, "      allocate(recordPool)\n");
 			fortprintf(fd, "      call mpas_pool_create_pool(recordPool)\n");
 			fortprintf(fd, "      call mpas_pool_add_subpool(configPool, '%s', recordPool)\n", nmlrecname);
 			fortprintf(fd, "\n");
@@ -670,7 +862,9 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 		// Define broadcast calls for namelist values.
 		fortprintf(fd, "      if (ierr <= 0) then\n");
 		for (nmlopt_xml = ezxml_child(nmlrecs_xml, "nml_option"); nmlopt_xml; nmlopt_xml = nmlopt_xml->next){
-			nmloptname = ezxml_attr(nmlopt_xml, "name");
+			original_nmloptname = ezxml_attr(nmlopt_xml, "name");
+			mangle_name(nmloptname, sizeof(nmloptname), original_nmloptname);
+
 			nmlopttype = ezxml_attr(nmlopt_xml, "type");
 
 			if(strncmp(nmlopttype, "real", 1024) == 0){
@@ -688,7 +882,9 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 		fortprintf(fd, "            call mpas_log_write('    The following values will be used for variables in this record:')\n");
 		fortprintf(fd, "            call mpas_log_write(' ')\n");
 		for (nmlopt_xml = ezxml_child(nmlrecs_xml, "nml_option"); nmlopt_xml; nmlopt_xml = nmlopt_xml->next){
-			nmloptname = ezxml_attr(nmlopt_xml, "name");
+			original_nmloptname = ezxml_attr(nmlopt_xml, "name");
+			mangle_name(nmloptname, sizeof(nmloptname), original_nmloptname);
+
 			nmlopttype = ezxml_attr(nmlopt_xml, "type");
 
 			if (strncmp(nmlopttype, "character", 1024) == 0) {
@@ -715,10 +911,12 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 		fortprintf(fd, "\n");
 
 		for (nmlopt_xml = ezxml_child(nmlrecs_xml, "nml_option"); nmlopt_xml; nmlopt_xml = nmlopt_xml->next){
-			nmloptname = ezxml_attr(nmlopt_xml, "name");
+			original_nmloptname = ezxml_attr(nmlopt_xml, "name");
+			mangle_name(nmloptname, sizeof(nmloptname), original_nmloptname);
 
-			fortprintf(fd, "      call mpas_pool_add_config(%s, '%s', %s)\n", pool_name, nmloptname, nmloptname);
-			fortprintf(fcg, "      call mpas_pool_get_config(configPool, '%s', %s)\n", nmloptname, nmloptname);
+			// Always keep namelist options to their original names in MPAS pools for compatibility reasons.
+			fortprintf(fd, "      call mpas_pool_add_config(%s, '%s', %s)\n", pool_name, original_nmloptname, nmloptname);
+			fortprintf(fcg, "      call mpas_pool_get_config(configPool, '%s', %s)\n", original_nmloptname, nmloptname);
 		}
 		fortprintf(fd, "\n");
 		fortprintf(fcg, "\n");
@@ -1016,7 +1214,7 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 	const char *structname, *structlevs, *structpackages;
 	const char *substructname;
 	const char *vararrname, *vararrtype, *vararrdims, *vararrpersistence, *vararrdefaultval, *vararrpackages, *vararrmissingval;
-	const char *varname, *varpersistence, *vartype, *vardims, *varunits, *vardesc, *vararrgroup, *varstreams, *vardefaultval, *varpackages;
+	const char *varname, *varpersistence, *vartype, *vardims, *vararrgroup, *varstreams, *vardefaultval, *varpackages;
 	const char *varname2, *vararrgroup2, *vararrname_in_code;
 	const char *varname_in_code;
 	const char *streamname, *streamname2;
@@ -1156,6 +1354,7 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 				while( (token = strsep(&string, ";")) != NULL){
 					fortprintf(fd, " .or. %sActive", token);
 				}
+				free(tofree);
 
 				fortprintf(fd, ") then\n");
 				snprintf(sub_spacing, 1024, "   ");
@@ -1221,6 +1420,7 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 							while( (token = strsep(&string, ";")) != NULL){
 								fortprintf(fd, " .or. %sActive", token);
 							}
+							free(tofree);
 
 							fortprintf(fd, ") then\n");
 							snprintf(sub_spacing, 1024, "   ");
@@ -1364,10 +1564,9 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 		fortprintf(fd, "      end do\n");
 
 		for(var_xml = ezxml_child(var_arr_xml, "var"); var_xml; var_xml = var_xml->next){
+			char **attr;
 			varname = ezxml_attr(var_xml, "name");
 			varname_in_code = ezxml_attr(var_xml, "name_in_code");
-			vardesc = ezxml_attr(var_xml, "description");
-			varunits = ezxml_attr(var_xml, "units");
 
 			if(!varname_in_code){
 				varname_in_code = ezxml_attr(var_xml, "name");
@@ -1377,40 +1576,18 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 			fortprintf(fd, "         call mpas_pool_get_dimension(newSubPool, 'index_%s', const_index)\n", varname_in_code);
 			fortprintf(fd, "      end if\n");
 			fortprintf(fd, "      if (const_index > 0) then\n", spacing);
-			if ( vardesc != NULL ) {
-				string = strdup(vardesc);
-				tofree = string;
 
-				token = strsep(&string, "'");
-				sprintf(temp_str, "%s", token);
-
-				while ( ( token = strsep(&string, "'") ) != NULL ) {
-					sprintf(temp_str, "%s''%s", temp_str, token);
+			for (attr = var_xml->attr; attr && *attr; attr+=2) {
+				// If the attr is "missing_value", ignore it and later on take
+				// the value from the var array.
+				if (strcmp(attr[0], "missing_value") == 0) {
+					printf("WARNING: Ignoring missing_value attribute for var %s defined in var_array %s\n", varname, vararrname);
+				} else {
+					add_attribute_if_not_ignored(fd, "const_index", attr[0], pointer_name_arr, attr[1]);
 				}
-
-				free(tofree);
-
-				fortprintf(fd, "         call mpas_add_att(%s %% attLists(const_index) %% attList, 'long_name', '%s')\n", pointer_name_arr, temp_str);
 			}
-
-			if ( varunits != NULL ) {
-				string = strdup(varunits);
-				tofree = string;
-
-				token = strsep(&string, "'");
-				sprintf(temp_str, "%s", token);
-
-				while ( ( token = strsep(&string, "'") ) != NULL ) {
-					sprintf(temp_str, "%s''%s", temp_str, token);
-				}
-
-				free(tofree);
-
-				fortprintf(fd, "         call mpas_add_att(%s %% attLists(const_index) %% attList, 'units', '%s')\n", pointer_name_arr, temp_str);
-			}
-
 			if ( vararrmissingval ) {
-				fortprintf(fd, "         call mpas_add_att(%s %% attLists(const_index) %% attList, '_FillValue', %s)\n", pointer_name_arr, missing_value);
+				add_attribute_if_not_ignored(fd, "const_index", "missing_value", pointer_name_arr, missing_value);
 			}
 			fortprintf(fd, "         %s %% missingValue = %s\n", pointer_name_arr, missing_value);
 			fortprintf(fd, "         %s %% constituentNames(const_index) = '%s'\n", pointer_name_arr, varname);
@@ -1435,6 +1612,7 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 		while( (token = strsep(&string, ";")) != NULL){
 			fortprintf(fd, " .or. %sActive", token);
 		}
+		free(tofree);
 		fortprintf(fd, ") then\n");
 	}
 
@@ -1467,7 +1645,7 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 	const char *structtimelevs, *vartimelevs;
 	const char *structname, *structlevs, *structpackages;
 	const char *substructname;
-	const char *varname, *varpersistence, *vartype, *vardims, *varunits, *vardesc, *vararrgroup, *varstreams, *vardefaultval, *varpackages, *varmissingval;
+	const char *varname, *varpersistence, *vartype, *vardims, *vararrgroup, *varstreams, *vardefaultval, *varpackages, *varmissingval;
 	const char *varname2, *vararrgroup2;
 	const char *varname_in_code;
 	const char *streamname, *streamname2;
@@ -1502,8 +1680,6 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 	vardefaultval = ezxml_attr(var_xml, "default_value");
 	vartimelevs = ezxml_attr(var_xml, "time_levs");
 	varname_in_code = ezxml_attr(var_xml, "name_in_code");
-	varunits = ezxml_attr(var_xml, "units");
-	vardesc = ezxml_attr(var_xml, "description");
 	varmissingval = ezxml_attr(var_xml, "missing_value");
 
 	if(!varname_in_code){
@@ -1548,6 +1724,7 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 	}
 
 	for(time_lev = 1; time_lev <= time_levs; time_lev++){
+		char **attr;
 		if (time_levs > 1) {
 			snprintf(pointer_name_arr, 1024, "%s(%d)", pointer_name, time_lev);
 		} else {
@@ -1603,41 +1780,14 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 		}
 		fortprintf(fd, "      allocate(%s %% attLists(1))\n", pointer_name_arr);
 		fortprintf(fd, "      allocate(%s %% attLists(1) %% attList)\n", pointer_name_arr);
-
-		if ( varunits != NULL ) {
-			string = strdup(varunits);
-			tofree = string;
-			token = strsep(&string, "'");
-
-			sprintf(temp_str, "%s", token);
-
-			while ( ( token = strsep(&string, "'") ) != NULL ) {
-				sprintf(temp_str, "%s''%s", temp_str, token);
+		for (attr = var_xml->attr; attr && *attr; attr+=2) {
+			// If the attr is "missing_value", use the specified fill value
+			// for real, integer, or char values. 
+			if (strcmp(attr[0], "missing_value") == 0) {
+				add_attribute_if_not_ignored(fd, "1", attr[0], pointer_name_arr, missing_value);
+			} else {
+				add_attribute_if_not_ignored(fd, "1", attr[0], pointer_name_arr, attr[1]);
 			}
-
-			free(tofree);
-
-			fortprintf(fd, "      call mpas_add_att(%s %% attLists(1) %% attList, 'units', '%s')\n", pointer_name_arr, temp_str);
-		}
-
-		if ( vardesc != NULL ) {
-			string = strdup(vardesc);
-			tofree = string;
-			token = strsep(&string, "'");
-
-			sprintf(temp_str, "%s", token);
-
-			while ( ( token = strsep(&string, "'") ) != NULL ) {
-				sprintf(temp_str, "%s''%s", temp_str, token);
-			}
-
-			free(tofree);
-
-			fortprintf(fd, "      call mpas_add_att(%s %% attLists(1) %% attList, 'long_name', '%s')\n", pointer_name_arr, temp_str);
-		}
-
-		if ( varmissingval != NULL ) {
-			fortprintf(fd, "      call mpas_add_att(%s %% attLists(1) %% attList, '_FillValue', %s)\n", pointer_name_arr, missing_value);
 		}
 		fortprintf(fd, "      %s %% missingValue = %s\n", pointer_name_arr, missing_value);
 
@@ -1659,6 +1809,7 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 		while( (token = strsep(&string, ";")) != NULL){
 			fortprintf(fd, " .or. %sActive", token);
 		}
+		free(tofree);
 
 		fortprintf(fd, ") then\n");
 	}
@@ -1780,7 +1931,6 @@ int parse_struct(FILE *fd, ezxml_t registry, ezxml_t superStruct, int subpool, c
 	fortprintf(fd, "\n");
 
 	// Setup new pool to be added into structPool
-	fortprintf(fd, "      allocate(newSubPool)\n");
 	fortprintf(fd, "      call mpas_pool_create_pool(newSubPool)\n");
 	fortprintf(fd, "      call mpas_pool_add_subpool(structPool, '%s', newSubPool)\n", structnameincode);
 	fortprintf(fd, "      call mpas_pool_add_subpool(block %% allStructs, '%s', newSubPool)\n", structname);
@@ -2412,3 +2562,404 @@ int parse_structs_from_registry(ezxml_t registry)/*{{{*/
 }/*}}}*/
 
 
+/**
+ * mangle_name
+ *
+ * Perform name mangling for MPAS namelist groups and options, as appropriate, depending on the containing
+ * host model.
+ *
+ * When MPAS is used as a dynamical core in a host model (e.g., CAM/CAM-SIMA), it needs to share
+ * the namelist file with other model components. As a result, MPAS namelist groups and options may not
+ * be easily recognizable at first sight. With the `MPAS_CAM_DYCORE` macro being defined, this function
+ * adds a unique identifier to each MPAS namelist group and option name by performing the following
+ * transformations:
+ *
+ * 1. Leading "config_" is removed recursively from the name. Case-insensitive.
+ * 2. Leading "mpas_" is removed recursively from the name. Case-insensitive.
+ * 3. Prepend "mpas_" to the name.
+ *
+ * By doing so, it is now easier to distinguish MPAS namelist groups and options from host model ones.
+ * The possibility of name collisions with host model ones is also resolved once and for all.
+ *
+ * For stand-alone MPAS, where the `MPAS_CAM_DYCORE` macro is not defined, this function just returns
+ * the name as is.
+ */
+void mangle_name(char *new_name, const size_t new_name_size, const char *old_name)
+{
+    if (!new_name || !old_name || new_name_size == 0) return;
+
+#ifdef MPAS_CAM_DYCORE
+    const char *const new_prefix = "mpas_";
+    const char *const old_prefix = "config_";
+
+    // Remove all leading whitespaces by moving pointer forward.
+    while (*old_name != '\0' && isspace((unsigned char) *old_name)) old_name++;
+
+    // Remove all leading "config_" by moving pointer forward.
+    while (strncasecmp(old_name, old_prefix, strlen(old_prefix)) == 0) old_name += strlen(old_prefix);
+
+    // Remove all leading "mpas_" by moving pointer forward.
+    while (strncasecmp(old_name, new_prefix, strlen(new_prefix)) == 0) old_name += strlen(new_prefix);
+
+    *new_name = '\0';
+    snprintf(new_name, new_name_size, "%s%s", new_prefix, old_name);
+
+    // Remove all trailing whitespaces by zeroing (nulling) out.
+    new_name += strlen(new_name) - 1;
+    while (*new_name != '\0' && isspace((unsigned char) *new_name)) *new_name-- = '\0';
+#else
+    snprintf(new_name, new_name_size, "%s", old_name);
+#endif
+}
+
+
+/******************************************************************************
+ *
+ * generate_package_logic
+ *
+ * Generates code for the Fortran routine 'CORE_setup_packages_when' in the file
+ * 'setup_packages.inc', where CORE is the core abbreviation from the registry
+ * core_abbrev attribute.
+ *
+ * Inputs:
+ *   registry - an XML tree containing the complete Registry file
+ *
+ * Return value: An integer status code. A value of 0 indicates success, and a
+ *   non-zero value indicates that an error was encountered when generating
+ *   logic for the package.
+ *
+ ******************************************************************************/
+int generate_package_logic(ezxml_t registry)/*{{{*/
+{
+	ezxml_t packages_xml, package_xml;
+	FILE *fd;
+	regex_t preg;
+	char *match = NULL;
+	regoff_t next = 0;
+        const char *corename;
+
+        corename = ezxml_attr(registry, "core_abbrev");
+
+        printf("---- GENERATING PACKAGE LOGIC ----\n");
+
+	if (regcomp(&preg, "config[0-9a-zA-Z_]*", REG_EXTENDED)) {
+		printf("Error compiling regex.\n");
+		return 1;
+	}
+
+	fd = fopen("setup_packages.inc", "w+");
+
+	fortprintf(fd, "#ifdef MPAS_DEBUG\n");
+	fortprintf(fd, "#define COMMA ,\n");
+	fortprintf(fd, "#define PACKAGE_LOGIC_PRINT(M) call mpas_log_write(M)\n");
+	fortprintf(fd, "#else\n");
+	fortprintf(fd, "#define PACKAGE_LOGIC_PRINT(M) ! M\n");
+	fortprintf(fd, "#endif\n\n");
+
+	fortprintf(fd, "   !\n");
+	fortprintf(fd, "   ! WARNING: This function is automatically generated at compile time.\n");
+        fortprintf(fd, "   !          Any modifications to this code will be lost when MPAS is recompiled.\n");
+	fortprintf(fd, "   !\n");
+	fortprintf(fd, "   function %s_setup_packages_when(configPool, packagePool) result(ierr)\n", corename);
+	fortprintf(fd, "\n");
+	fortprintf(fd, "      use mpas_derived_types, only : mpas_pool_type\n");
+	fortprintf(fd, "      use mpas_log, only : mpas_log_write\n");
+	fortprintf(fd, "\n");
+	fortprintf(fd, "      implicit none\n");
+	fortprintf(fd, "\n");
+	fortprintf(fd, "      integer :: ierr\n");
+	fortprintf(fd, "\n");
+	fortprintf(fd, "      type (mpas_pool_type), intent(in) :: configPool\n");
+	fortprintf(fd, "      type (mpas_pool_type), intent(inout) :: packagePool\n");
+	fortprintf(fd, "\n");
+	fortprintf(fd, "\n");
+	fortprintf(fd, "      ierr = 0\n");
+	fortprintf(fd, "\n");
+	fortprintf(fd, "      call mpas_log_write('')\n");
+	fortprintf(fd, "      call mpas_log_write('Configuring registry-specified packages...')\n");
+	fortprintf(fd, "\n");
+
+	for (packages_xml = ezxml_child(registry, "packages"); packages_xml; packages_xml = packages_xml->next) {
+		for (package_xml = ezxml_child(packages_xml, "package"); package_xml; package_xml = package_xml->next) {
+			const char *packagename, *packagewhen;
+
+			packagename = ezxml_attr(package_xml, "name");
+			packagewhen = ezxml_attr(package_xml, "active_when");
+
+			if (packagewhen != NULL) {
+				fortprintf(fd, "      call %s_setup_%s_package(configPool, packagePool)\n", corename, packagename);
+			}
+		}
+	}
+
+	fortprintf(fd, "\n");
+	fortprintf(fd, "      call mpas_log_write('----- done configuring registry-specified packages -----')\n");
+	fortprintf(fd, "      call mpas_log_write('')\n");
+	fortprintf(fd, "\n");
+	fortprintf(fd, "   end function %s_setup_packages_when\n", corename);
+	fortprintf(fd, "\n");
+
+	for (packages_xml = ezxml_child(registry, "packages"); packages_xml; packages_xml = packages_xml->next) {
+		for (package_xml = ezxml_child(packages_xml, "package"); package_xml; package_xml = package_xml->next) {
+			const char *packagename, *packagewhen;
+
+			packagename = ezxml_attr(package_xml, "name");
+			packagewhen = ezxml_attr(package_xml, "active_when");
+
+			if (packagewhen != NULL) {
+				if (package_logic_routine(fd, &preg, corename, packagename, packagewhen, registry) != 0) {
+					fprintf(stderr, "Error: Problem generating logic routine for package %s, active when (%s)\n", packagename, packagewhen);
+					regfree(&preg);
+					fclose(fd);
+					return 1;
+				}
+			}
+		}
+	}
+
+	regfree(&preg);
+
+	fclose(fd);
+
+	return 0;
+}/*}}}*/
+
+
+/******************************************************************************
+ *
+ * package_logic_routine
+ *
+ * Generates code for the Fortran routine 'setup_X_package' that defines the active
+ * status of the package X, whose name is given by packagename, based on the logic
+ * described in the packagewhen string.
+ *
+ * Inputs:
+ *   fd - an open file descriptor, to which the generated code will be written
+ *   preg - a compiled regular-expression that matches namelist options
+ *   corename - a string with the name of the core for which package logic is
+ *              being generated. The corename is used in the name of the routine
+ *              being generated.
+ *   packagename - the name of the package for which code is being generated
+ *   packagewhen - the string containing the logical condition under which the
+ *                 package is active
+ *   registry - an XML tree containing the complete Registry file
+ *
+ * Return value: An integer status code. A value of 0 indicates success, and a
+ *   non-zero value indicates that an error was encountered when generating
+ *   logic for the package.
+ *
+ ******************************************************************************/
+int package_logic_routine(FILE *fd, regex_t *preg, const char *corename,
+                          const char *packagename, const char *packagewhen,
+                          ezxml_t registry)/*{{{*/
+{
+	ezxml_t packages_xml, package_xml;
+	char *match;
+	regoff_t next;
+
+
+	fortprintf(fd, "\n");
+	fortprintf(fd, "   !\n");
+	fortprintf(fd, "   ! WARNING: This subroutine is automatically generated at compile time.\n");
+        fortprintf(fd, "   !          Any modifications to this code will be lost when MPAS is recompiled.\n");
+	fortprintf(fd, "   !\n");
+	fortprintf(fd, "   subroutine %s_setup_%s_package(configPool, packagePool)\n", corename, packagename);
+	fortprintf(fd, "\n");
+	fortprintf(fd, "      use mpas_kind_types, only : RKIND, StrKIND\n");
+	fortprintf(fd, "      use mpas_derived_types, only : mpas_pool_type\n");
+	fortprintf(fd, "      use mpas_log, only : mpas_log_write\n");
+	fortprintf(fd, "\n");
+	fortprintf(fd, "      implicit none\n");
+	fortprintf(fd, "\n");
+	fortprintf(fd, "      type (mpas_pool_type), intent(in) :: configPool\n");
+	fortprintf(fd, "      type (mpas_pool_type), intent(inout) :: packagePool\n");
+	fortprintf(fd, "\n");
+	fortprintf(fd, "      logical, pointer :: %sActive\n", packagename);
+	fortprintf(fd, "\n");
+
+	next = 0;
+	while ((match = nmlopt_from_str(preg, packagewhen, &next)) != NULL) {
+		const char *nmltype;
+
+		nmltype =  nmlopt_type(registry, match);
+
+		if (nmltype != NULL) {
+			if (strcmp(nmltype, "integer") == 0) {
+				fortprintf(fd, "      integer, pointer :: %s\n", match);
+			} else if (strcmp(nmltype, "real") == 0) {
+				fortprintf(fd, "      real(kind=RKIND), pointer :: %s\n", match);
+			} else if (strcmp(nmltype, "logical") == 0) {
+				fortprintf(fd, "      logical, pointer :: %s\n", match);
+			} else if (strcmp(nmltype, "character") == 0) {
+				fortprintf(fd, "      character(len=StrKIND), pointer :: %s\n", match);
+			} else {
+				fortprintf(fd, "      INTENTIONAL COMPILE ERROR - UNKNOWN TYPE %s FOR %s\n", nmltype, match);
+				fprintf(stderr, "Error: Unknown type %s for %s\n", nmltype, match);
+				free(match);
+	                        return 1;
+			}
+		} else {
+			fortprintf(fd, "      INTENTIONAL COMPILE ERROR - %s NOT FOUND IN REGISTRY\n", match);
+			fprintf(stderr, "Error: %s not found in registry\n", match);
+			free(match);
+                        return 1;
+		}
+
+		free(match);
+	}
+	fortprintf(fd, "\n");
+
+	next = 0;
+	while ((match = nmlopt_from_str(preg, packagewhen, &next)) != NULL) {
+
+		fortprintf(fd, "      nullify(%s)\n", match, match);
+		fortprintf(fd, "      call mpas_pool_get_config(configPool, '%s', %s)\n", match, match);
+
+		free(match);
+	}
+	fortprintf(fd, "\n");
+	fortprintf(fd, "      nullify(%sActive)\n", packagename);
+	fortprintf(fd, "      call mpas_pool_get_package(packagePool, '%sActive', %sActive)\n", packagename, packagename);
+	fortprintf(fd, "\n");
+
+	gen_pkg_debug_info(fd, preg, registry, packagename, packagewhen);
+
+	fortprintf(fd, "      %sActive = ( %s )\n", packagename, packagewhen);
+	fortprintf(fd, "      call mpas_log_write('  %s : $l', logicArgs=[%sActive])\n", packagename, packagename);
+	fortprintf(fd, "\n");
+	fortprintf(fd, "   end subroutine %s_setup_%s_package\n", corename, packagename);
+	fortprintf(fd, "\n");
+
+	return 0;
+}/*}}}*/
+
+
+/******************************************************************************
+ *
+ * nmlopt_from_str
+ *
+ * Parses and returns successive namelist options from the string str. The regex
+ * preg is used to match valid namelist options, and next stores the context.
+ *
+ * On the initial call, the next argument must be set to 0.
+ *
+ * Inputs:
+ *   preg - a compiled regular-expression that matches namelist options
+ *   next - used for internal state. On the first invocation, next must be set
+ *          to 0.
+ *
+ * Outputs:
+ *   next - an offset used to retain the state; the next value should be passed
+ *          unmodified to subsequent calls to this function.
+ *
+ * Return value: A string containing the next namelist option matching preg that
+ *   was found in the input string, str. If no further namelist options were
+ *   found, a NULL value is returned.
+ *
+ ******************************************************************************/
+char * nmlopt_from_str(regex_t *preg, const char *str, regoff_t *next)/*{{{*/
+{
+	const size_t nmatch = 2;
+	regmatch_t pmatch[nmatch];
+	char *match = NULL;
+
+	if (regexec(preg, str+*next, nmatch, pmatch, 0) != REG_NOMATCH) {
+		if (pmatch[0].rm_so >= 0 && pmatch[0].rm_eo >= 0) {
+			size_t len = (size_t)(pmatch[0].rm_eo - pmatch[0].rm_so);
+			match = malloc(sizeof(char) * (len + 1));
+			strncpy(match, str+*next+pmatch[0].rm_so, len);
+			match[len] = '\0';
+			*next += pmatch[0].rm_eo;
+		}
+	}
+
+	return match;
+}/*}}}*/
+
+
+/******************************************************************************
+ *
+ * nmlopt_type
+ *
+ * Given a namelist option, nmlopt, defined in registry, returns the string from
+ * the registry defining the type of the option (e.g., "integer" or "logical").
+ *
+ * Inputs:
+ *   registry - an XML tree containing the complete Registry file
+ *   nmlopt - a string containing the namelist option whose type is to be found
+ *
+ * Return value: A string identifying the type of the namelist option, or, if
+ *   the namelist option was not found in the Registry, a NULL value..
+ *
+ ******************************************************************************/
+const char * nmlopt_type(ezxml_t registry, const char *nmlopt)/*{{{*/
+{
+	ezxml_t nmlrecs_xml, nmlopt_xml;
+
+	const char *nmloptname, *nmlopttype;
+
+	for (nmlrecs_xml = ezxml_child(registry, "nml_record"); nmlrecs_xml; nmlrecs_xml = nmlrecs_xml->next){
+		for (nmlopt_xml = ezxml_child(nmlrecs_xml, "nml_option"); nmlopt_xml; nmlopt_xml = nmlopt_xml->next){
+			nmloptname = ezxml_attr(nmlopt_xml, "name");
+			nmlopttype = ezxml_attr(nmlopt_xml, "type");
+
+			if (strcmp(nmlopt, nmloptname) == 0) {
+				return nmlopttype;
+			}
+		}
+	}
+
+	return NULL;
+}/*}}}*/
+
+
+/******************************************************************************
+ *
+ * gen_pkg_debug_info
+ *
+ * Adds debugging statements to generated package logic code. The debugging
+ * statements consist of PACKAGE_LOGIC_PRINT macros, which are expected to
+ * expand either to comments or to calls to mpas_log_write at compile-time.
+ *
+ * Inputs:
+ *   fd - an open file descriptor, to which the debugging statements will be
+ *        written
+ *   preg - a compiled regular-expression that matches namelist options
+ *   registry - an XML tree containing the complete Registry file
+ *   packagename - the name of the package for which code is being generated
+ *   packagewhen - the string containing the logical condition under which the
+ *                 package is active
+ *
+ ******************************************************************************/
+void gen_pkg_debug_info(FILE *fd, regex_t *preg, ezxml_t registry,
+                        const char *packagename, const char *packagewhen)/*{{{*/
+{
+	char *match;
+	regoff_t next = 0;
+
+	fortprintf(fd, "      PACKAGE_LOGIC_PRINT('')\n");
+	fortprintf(fd, "      PACKAGE_LOGIC_PRINT(\"  %s is active when (%s)\")\n", packagename, packagewhen);
+	fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    namelist settings:')\n");
+	fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    ------------------')\n");
+
+	while ((match = nmlopt_from_str(preg, packagewhen, &next)) != NULL) {
+		const char *nmltype;
+
+		nmltype =  nmlopt_type(registry, match);
+
+		if (nmltype != NULL) {
+			if (strcmp(nmltype, "integer") == 0) {
+				fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    %s = $i' COMMA intArgs=[%s])\n", match, match);
+			} else if (strcmp(nmltype, "real") == 0) {
+				fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    %s = $r' COMMA realArgs=[%s])\n", match, match);
+			} else if (strcmp(nmltype, "logical") == 0) {
+				fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    %s = $l' COMMA logicArgs=[%s])\n", match, match);
+			} else if (strcmp(nmltype, "character") == 0) {
+				fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    %s = '//trim(%s))\n", match, match);
+			}
+		}
+
+		free(match);
+	}
+	fortprintf(fd, "\n");
+}/*}}}*/

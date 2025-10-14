@@ -89,11 +89,14 @@
  ! use module level variables for now...
  !
  integer (kind=I8KIND), dimension(:), pointer :: ter_integer
+ integer (kind=I8KIND), dimension(:,:), pointer :: soilcomp_int
+ real (kind=RKIND) :: soilcomp_msgval = 255.0_RKIND   ! Modified later based on index file for soilcomp
  integer, dimension(:), pointer :: lu_index
  integer, dimension(:), pointer :: soilcat_top
  integer, dimension(:), pointer :: nhs
  integer, dimension(:,:), allocatable:: ncat
- ! Landmask is used by the accumulation function for maxsnoalb so it needs to be a global variable
+ ! Landmask is used by the accumulation function for maxsnoalb and soilcomp,
+ ! so it needs to be a global variable
  integer, dimension(:), pointer :: landmask
 
  integer, pointer :: category_min
@@ -123,6 +126,8 @@
  character(len=StrKIND), pointer :: config_vegfrac_data
  character(len=StrKIND), pointer :: config_albedo_data
  character(len=StrKIND), pointer :: config_maxsnowalbedo_data
+ logical, pointer :: config_noahmp_static
+ character(len=StrKIND), pointer :: config_soilcat_data
  character(len=StrKIND+1) :: geog_data_path      ! same as config_geog_data_path, but guaranteed to have a trailing slash
  character(len=StrKIND+1) :: geog_sub_path       ! subdirectory names in config_geog_data_path, with trailing slash
 
@@ -140,6 +145,8 @@
  type(c_ptr) :: rarray_ptr
 
  integer, pointer :: supersample_fac
+ integer, pointer :: supersample_fac_lu
+ integer, pointer :: supersample_fac_30s
 
  real(kind=RKIND):: lat,lon,x,y
  real(kind=RKIND):: lat_pt,lon_pt
@@ -209,11 +216,15 @@
 
  call mpas_pool_get_config(configs, 'config_geog_data_path', config_geog_data_path)
  call mpas_pool_get_config(configs, 'config_landuse_data', config_landuse_data)
+ call mpas_pool_get_config(configs, 'config_soilcat_data', config_soilcat_data)
  call mpas_pool_get_config(configs, 'config_topo_data', config_topo_data)
  call mpas_pool_get_config(configs, 'config_vegfrac_data', config_vegfrac_data)
  call mpas_pool_get_config(configs, 'config_albedo_data', config_albedo_data)
  call mpas_pool_get_config(configs, 'config_maxsnowalbedo_data', config_maxsnowalbedo_data)
  call mpas_pool_get_config(configs, 'config_supersample_factor', supersample_fac)
+ call mpas_pool_get_config(configs, 'config_lu_supersample_factor', supersample_fac_lu)
+ call mpas_pool_get_config(configs, 'config_30s_supersample_factor', supersample_fac_30s)
+ call mpas_pool_get_config(configs, 'config_noahmp_static', config_noahmp_static)
 
  write(geog_data_path, '(a)') config_geog_data_path
  i = len_trim(geog_data_path)
@@ -343,13 +354,14 @@
  surface_input_select0: select case(trim(config_landuse_data))
     case('USGS')
        write(mminlu,'(a)') 'USGS'
-    case('MODIFIED_IGBP_MODIS_NOAH')
+    case('MODIFIED_IGBP_MODIS_NOAH', 'MODIFIED_IGBP_MODIS_NOAH_15s')
        write(mminlu,'(a)') 'MODIFIED_IGBP_MODIS_NOAH'
     case default
          call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('Invalid land use dataset '''//trim(config_landuse_data) &
                                        //''' selected for config_landuse_data',                   messageType=MPAS_LOG_ERR)
          call mpas_log_write('   Possible options are: ''USGS'', ''MODIFIED_IGBP_MODIS_NOAH''',   messageType=MPAS_LOG_ERR)
+         call mpas_log_write('                         ''MODIFIED_IGBP_MODIS_NOAH_15s''',         messageType=MPAS_LOG_ERR)
          call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select surface_input_select0
@@ -374,7 +386,8 @@
  end select
 
  call mpas_log_write('--- start interpolate TER')
- call interp_terrain(mesh, tree, trim(geog_data_path)//trim(geog_sub_path))
+ call interp_terrain(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                     supersample_fac=supersample_fac_30s)
  call mpas_log_write('--- end interpolate TER')
 
 
@@ -388,26 +401,46 @@
     case('MODIFIED_IGBP_MODIS_NOAH')
        call mpas_log_write('Using 20-class MODIS 30-arc-second land cover dataset')
        geog_sub_path = 'modis_landuse_20class_30s/'
+    case('MODIFIED_IGBP_MODIS_NOAH_15s')
+       call mpas_log_write('Using 20-class MODIS 15-arc-second land cover dataset')
+       geog_sub_path = 'modis_landuse_20class_15s/'
     case default
        call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
        call mpas_log_write('Invalid land use dataset '''//trim(config_landuse_data) &
                                      //''' selected for config_landuse_data',                   messageType=MPAS_LOG_ERR)
        call mpas_log_write('   Possible options are: ''USGS'', ''MODIFIED_IGBP_MODIS_NOAH''',   messageType=MPAS_LOG_ERR)
+       call mpas_log_write('                         ''MODIFIED_IGBP_MODIS_NOAH_15s''',         messageType=MPAS_LOG_ERR)
        call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
        call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select surface_input_select1
 
  call mpas_log_write('--- start interpolate LU_INDEX')
- call interp_landuse(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), isice_lu, iswater_lu)
+ call interp_landuse(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), isice_lu, iswater_lu, &
+                     supersample_fac=supersample_fac_lu)
  call mpas_log_write('--- end interpolate LU_INDEX')
 
 !
 ! Interpolate SOILCAT_TOP
 !
- geog_sub_path = 'soiltype_top_30s/'
+ select case(trim(config_soilcat_data))
+    case('STATSGO')
+       call mpas_log_write('Using STATSGO 30-arc-second soil type dataset')
+       geog_sub_path = 'soiltype_top_30s/'
+    case('BNU')
+       call mpas_log_write('Using BNU 30-arc-second soil type dataset')
+       geog_sub_path = 'bnu_soiltype_top/'
+    case default
+       call mpas_log_write('*****************************************************************',messageType=MPAS_LOG_ERR)
+       call mpas_log_write('Invalid soil type dataset'''//trim(config_soilcat_data) &
+                                     //''' selected for config_soilcat_data',                  messageType=MPAS_LOG_ERR)
+       call mpas_log_write('   Possible options are: ''STATSGO'',''BNU''',                     messageType=MPAS_LOG_ERR)
+       call mpas_log_write('*****************************************************************',messageType=MPAS_LOG_ERR)
+       call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
+ end select
 
  call mpas_log_write('--- start interpolate SOILCAT_TOP')
- call interp_soilcat(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), iswater_soil)
+ call interp_soilcat(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), iswater_soil, &
+                     supersample_fac=supersample_fac_30s)
  call mpas_log_write('--- end interpolate SOILCAT_TOP')
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -704,6 +737,10 @@
 
     call mpas_log_write('Using MODIS FPAR 30-arc-second data for climatological monthly vegetation fraction')
 
+    if (supersample_fac_30s > 1) then
+       call mpas_log_write('   Dataset will be supersampled by a factor of $i', intArgs=(/supersample_fac_30s/))
+    end if
+
     geog_sub_path = 'greenfrac_fpar_modis/'
 
     ierr = mgr % init(trim(geog_data_path)//trim(geog_sub_path))
@@ -750,10 +787,13 @@
 
             all_pixels_mapped_to_halo_cells = .true.
 
-            do j = tile_bdr + 1, tile_ny + tile_bdr, 1
-                do i = tile_bdr + 1, tile_nx + tile_bdr, 1
+            do j = supersample_fac_30s * tile_bdr + 1, supersample_fac_30s * (tile_ny + tile_bdr), 1
+                do i = supersample_fac_30s * tile_bdr + 1, supersample_fac_30s * (tile_nx + tile_bdr), 1
 
-                    call mgr % tile_to_latlon(tile, j, i, lat_pt, lon_pt)
+                    ii = (i - 1) / supersample_fac_30s + 1
+                    jj = (j - 1) / supersample_fac_30s + 1
+
+                    call mgr % tile_to_latlon(tile, j, i, lat_pt, lon_pt, supersample_fac_30s)
                     call mpas_latlon_to_xyz(xPixel, yPixel, zPixel, sphere_radius, lat_pt, lon_pt)
                     call mpas_kd_search(tree, (/xPixel, yPixel, zPixel/), res, max_distance=max_kdtree_distance2)
 
@@ -766,10 +806,10 @@
                     !
                     if (landMask(res % id) == 1 .and. bdyMaskCell(res % id) < nBdyLayers) then
                         do k = 1, tile_nz
-                            if (tile % tile(i, j, k) == missing_value) then
+                            if (tile % tile(ii, jj, k) == missing_value) then
                                 i8val = int(fillval, kind=I8KIND)
                             else
-                                i8val = int(tile % tile(i,j,k), kind=I8KIND)
+                                i8val = int(tile % tile(ii, jj, k), kind=I8KIND)
                             end if
                             greenfrac_int(k, res % id) = greenfrac_int(k, res % id) + i8val
                         end do
@@ -785,10 +825,10 @@
                         if (mpas_in_cell(xPixel, yPixel, zPixel, xCell(res % id), yCell(res % id), zCell(res % id), &
                                           nEdgesOnCell(res % id), verticesOnCell(:,res % id), xVertex, yVertex, zVertex)) then
                             do k = 1, tile_nz
-                                if (tile % tile(i, j, k) == missing_value) then
+                                if (tile % tile(ii, jj, k) == missing_value) then
                                     i8val = int(fillval, kind=I8KIND)
                                 else
-                                    i8val = int(tile % tile(i,j,k), kind=I8KIND)
+                                    i8val = int(tile % tile(ii, jj, k), kind=I8KIND)
                                 end if
                                 greenfrac_int(k, res % id) = greenfrac_int(k, res % id) + i8val
                             end do
@@ -1156,6 +1196,60 @@
 
  call mpas_log_write('--- end interpolate ALBEDO12M')
 
+ if (config_noahmp_static) then
+
+    !
+    ! Interpolate SOILCOMP
+    !
+    geog_sub_path = 'soilgrids/soilcomp/'
+
+    call mpas_log_write('--- start interpolate SOILCOMP')
+    call interp_soilcomp(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                         supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SOILCOMP')
+
+    !
+    ! Interpolate SOILCL1
+    !
+    geog_sub_path = 'soilgrids/texture_layer1/'
+
+    call mpas_log_write('--- start interpolate SOILCL1')
+    call interp_soil_texture('soilcl1', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SOILCL1')
+
+    !
+    ! Interpolate SOILCL2
+    !
+    geog_sub_path = 'soilgrids/texture_layer2/'
+
+    call mpas_log_write('--- start interpolate SOILCL2')
+    call interp_soil_texture('soilcl2', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SOILCL2')
+
+    !
+    ! Interpolate SOILCL3
+    !
+    geog_sub_path = 'soilgrids/texture_layer3/'
+
+    call mpas_log_write('--- start interpolate SOILCL3')
+    call interp_soil_texture('soilcl3', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SOILCL3')
+
+    !
+    ! Interpolate SOILCL4
+    !
+    geog_sub_path = 'soilgrids/texture_layer4/'
+
+    call mpas_log_write('--- start interpolate SOILCL4')
+    call interp_soil_texture('soilcl4', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SOILCL4')
+
+ end if
+
 !
 ! Deallocate and free the KD Tree
 !
@@ -1422,6 +1516,33 @@
 
  !***********************************************************************
  !
+ !  routine soilcomp_interp_accumulation
+ !
+ !> \brief  Accumulate soilcomp dataset values
+ !> \author Michael G. Duda
+ !> \date   31 May 2024
+ !> \details
+ !> This routine accumulates soilcomp values for the init_atm_map_static_data
+ !> routine.
+ !
+ !-----------------------------------------------------------------------
+ subroutine soilcomp_interp_accumulation(iCell, pixel)
+
+     integer, intent(in) ::iCell
+     integer (kind=I8KIND), dimension(:), intent(in) :: pixel
+
+     if (landmask(iCell) == 0) return
+
+     if (pixel(1) /= soilcomp_msgval) then
+         soilcomp_int(:,iCell) = soilcomp_int(:,iCell) + int(pixel(:), kind=I8KIND)
+         nhs(iCell) = nhs(iCell) + 1
+     end if
+
+ end subroutine soilcomp_interp_accumulation
+
+
+ !***********************************************************************
+ !
  !  routine interp_terrain
  !
  !> \brief   Interpolate terrain
@@ -1435,7 +1556,7 @@
  !> should be the path to the terrain dataset.
  !
  !-----------------------------------------------------------------------
- subroutine interp_terrain(mesh, kdtree, geog_data_path)
+ subroutine interp_terrain(mesh, kdtree, geog_data_path, supersample_fac)
 
     implicit none
 
@@ -1443,6 +1564,7 @@
     type (mpas_pool_type), intent(inout) :: mesh
     type (mpas_kd_type), pointer, intent(in) :: kdtree
     character (len=*), intent(in) :: geog_data_path
+    integer, intent(in), optional :: supersample_fac
 
     ! Local variables
     type (mpas_geotile_mgr_type) :: mgr
@@ -1478,7 +1600,8 @@
     ter_integer(:) = 0
     nhs(:) = 0
 
-    call init_atm_map_static_data(mesh, mgr, kdtree, continuous_interp_criteria, terrain_interp_accumulation)
+    call init_atm_map_static_data(mesh, mgr, kdtree, continuous_interp_criteria, terrain_interp_accumulation, &
+                                  supersample_fac=supersample_fac)
 
     do iCell = 1, nCells
        ter(iCell) = real(real(ter_integer(iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND), kind=RKIND)
@@ -1495,6 +1618,104 @@
     end if
 
  end subroutine interp_terrain
+
+ !***********************************************************************
+ !
+ !  routine interp_soilcomp
+ !
+ !> \brief  Interpolate the soilcomp field for Noah-MP
+ !> \author Michael G. Duda
+ !> \date   31 May 2024
+ !> \details
+ !> Interpolate soilcomp using the init_atm_map_static_data routine,
+ !> accumulating pixel values into cells using the soilcomp_interp_accumulation
+ !> method.
+ !>
+ !> The mesh argument is an mpas_pool that contains soilcomp as well as
+ !> the nCells dimension. kdtree is an initialized kdtree of (xCell, yCell, zCell),
+ !> and geog_data_path specifies the path to the soilcomp dataset.
+ !>
+ !> The supersample_fac argument specifies the supersampling factor to be
+ !> applied to the source dataset.
+ !
+ !-----------------------------------------------------------------------
+ subroutine interp_soilcomp(mesh, kdtree, geog_data_path, supersample_fac)
+
+    implicit none
+
+    ! Input variables
+    type (mpas_pool_type), intent(inout) :: mesh
+    type (mpas_kd_type), pointer, intent(in) :: kdtree
+    character (len=*), intent(in) :: geog_data_path
+    integer, intent(in), optional :: supersample_fac
+
+    ! Local variables
+    type (mpas_geotile_mgr_type) :: mgr
+    integer, pointer :: nCells, nSoilComps
+    real (kind=RKIND), pointer :: scalefactor
+    real (kind=RKIND), pointer :: missing_value
+
+    real (kind=RKIND), dimension(:,:), pointer :: soilcomp
+
+    integer :: iCell
+    integer :: ierr
+
+    ierr = mgr % init(trim(geog_data_path))
+    if (ierr /= 0) then
+        call mpas_log_write('Error occurred initializing interpolation for '//trim(geog_data_path), &
+                            messageType=MPAS_LOG_CRIT)
+
+        return ! Program execution should not reach this statement
+               ! since the preceding message is a critical error
+    end if
+
+    call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+    call mpas_pool_get_dimension(mesh, 'nSoilComps', nSoilComps)
+    call mpas_pool_get_array(mesh, 'soilcomp', soilcomp)
+
+    call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
+    call mpas_pool_get_config(mgr % pool, 'missing_value', missing_value)
+
+    soilcomp_msgval = missing_value
+
+    allocate(soilcomp_int(nSoilComps,nCells))
+    allocate(nhs(nCells))
+
+    !
+    ! Store tile values as a I8KIND integer temporarily to avoid floating
+    ! point round off differences and to have +/- 9.22x10^18 range of representative
+    ! values. For example, a 120 km mesh with a 1 meter data set with 6 decimal of
+    ! precision will allow for values of 180x10^12.
+    !
+    soilcomp(:,:) = 0.0
+    soilcomp_int(:,:) = 0
+    nhs(:) = 0
+
+    call init_atm_map_static_data(mesh, mgr, kdtree, continuous_interp_criteria, &
+                                  soilcomp_interp_accumulation, &
+                                  supersample_fac=supersample_fac)
+
+    do iCell = 1, nCells
+       if (nhs(iCell) > 0) then
+           soilcomp(:,iCell) = real(real(soilcomp_int(:,iCell), kind=R8KIND) &
+                                    / real(nhs(iCell), kind=R8KIND), kind=RKIND)
+       end if
+    end do
+    soilcomp(:,:) = soilcomp(:,:) * scalefactor
+
+    deallocate(soilcomp_int)
+    deallocate(nhs)
+
+    ierr = mgr % finalize()
+    if (ierr /= 0) then
+        call mpas_log_write('Error occurred finalizing interpolation for '//trim(geog_data_path), &
+                            messageType=MPAS_LOG_CRIT)
+
+        return ! Program execution should not reach this statement
+               ! since the preceding message is a critical error
+    end if
+
+ end subroutine interp_soilcomp
 
 !--------------------------------------------------------------------------------------------------
 ! Categorical interpolations - Landuse and Soiltype
@@ -1571,7 +1792,7 @@
  !> that isice and iswater are in the dataset's index file.
  !
  !-----------------------------------------------------------------------
- subroutine interp_landuse(mesh, kdtree, geog_data_path, isice_lu, iswater_lu)
+ subroutine interp_landuse(mesh, kdtree, geog_data_path, isice_lu, iswater_lu, supersample_fac)
 
      implicit none
 
@@ -1581,6 +1802,7 @@
      character (len=*), intent(in) :: geog_data_path
      integer, intent(out) :: isice_lu
      integer, intent(out) :: iswater_lu
+     integer, intent(in), optional :: supersample_fac
 
      ! Local variables
      type (mpas_geotile_mgr_type) :: mgr
@@ -1613,7 +1835,8 @@
      allocate(ncat(category_min:category_max, nCells))
      ncat(:,:) = 0
 
-     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation)
+     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation, &
+                                   supersample_fac=supersample_fac)
 
      do iCell = 1, nCells
          ! Because maxloc returns the location of the maximum value of an array as if the
@@ -1652,7 +1875,7 @@
  !> iswater is present in the dataset's index file.
  !>
  !-----------------------------------------------------------------------
- subroutine interp_soilcat(mesh, kdtree, geog_data_path, iswater_soil)
+ subroutine interp_soilcat(mesh, kdtree, geog_data_path, iswater_soil, supersample_fac)
 
      implicit none
 
@@ -1661,6 +1884,7 @@
      type (mpas_kd_type), pointer, intent(in) :: kdtree
      character (len=*), intent(in) :: geog_data_path
      integer, intent(out) :: iswater_soil
+     integer, intent(in), optional :: supersample_fac
 
      ! Local variables
      type (mpas_geotile_mgr_type) :: mgr
@@ -1690,7 +1914,8 @@
      allocate(ncat(category_min:category_max, nCells))
      ncat(:,:) = 0
 
-     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation)
+     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation, &
+                                   supersample_fac=supersample_fac)
 
      do iCell = 1, nCells
         ! Because maxloc returns the location of the maximum value of an array as if the
@@ -1876,6 +2101,85 @@
      deallocate(soiltemp_1deg)
 
  end subroutine interp_soiltemp
+
+ !***********************************************************************
+ !
+ !  routine interp_soil_texture
+ !
+ !> \brief  Interpolate soil texture category for Noah-MP
+ !> \author Michael G. Duda
+ !> \date   31 May 2024
+ !> \details
+ !>  Interpolate soil texture category fields by using the init_atm_map_static_data
+ !>  routine, accumulating the pixel values into each cell using
+ !>  categorical_interp_accumulation.
+ !>
+ !>  The fieldname argument specifies the specific soil texture category
+ !>  field from the mesh pool onto which the dataset specified by geog_data_path
+ !>  should be remapped.
+ !>
+ !>  The mesh argument is an mpas_pool_type that contains the specified fieldname,
+ !>  kdtree is an initialized mpas_kd_type tree with (xCell, yCell, zCell), and
+ !>  supersample_fac is the supersampling factor to be applied to the source dataset.
+ !>
+ !-----------------------------------------------------------------------
+ subroutine interp_soil_texture(fieldname, mesh, kdtree, geog_data_path, supersample_fac)
+
+     implicit none
+
+     ! Input variables
+     character (len=*), intent(in) :: fieldname
+     type (mpas_pool_type), intent(inout) :: mesh
+     type (mpas_kd_type), pointer, intent(in) :: kdtree
+     character (len=*), intent(in) :: geog_data_path
+     integer, intent(in), optional :: supersample_fac
+
+     ! Local variables
+     real, dimension(:), pointer :: soilclx
+     type (mpas_geotile_mgr_type) :: mgr
+     integer, pointer :: nCells
+
+     integer :: iCell
+     integer :: ierr
+
+     ierr = mgr % init(trim(geog_data_path))
+     if (ierr /= 0) then
+         call mpas_log_write('Error occured initalizing interpolation for '//trim(geog_data_path), &
+                             messageType=MPAS_LOG_CRIT)
+         return
+     end if
+
+     call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+     call mpas_pool_get_array(mesh, trim(fieldname), soilclx)
+     call mpas_pool_get_config(mgr % pool, 'category_min', category_min)
+     call mpas_pool_get_config(mgr % pool, 'category_max', category_max)
+
+     allocate(ncat(category_min:category_max, nCells))
+     ncat(:,:) = 0
+
+     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, &
+                                   categorical_interp_accumulation, &
+                                   supersample_fac=supersample_fac)
+
+     do iCell = 1, nCells
+        ! Because maxloc returns the location of the maximum value of an array as if the
+        ! starting index of the array is 1, and dataset categories do not necessarily start
+        ! at 1, we need to use category_min to ensure the correct category location is chosen.
+        soilclx(iCell) = real(maxloc(ncat(:,iCell), dim=1) - 1 + category_min, kind=RKIND)
+     end do
+     deallocate(ncat)
+
+     ierr = mgr % finalize()
+     if (ierr /= 0) then
+         call mpas_log_write('Error occured finalizing interpolation for '//trim(geog_data_path), &
+                             messageType=MPAS_LOG_CRIT)
+         return
+     end if
+
+     nullify(category_min)
+     nullify(category_max)
+
+ end subroutine interp_soil_texture
 
 !==================================================================================================
  subroutine init_atm_check_read_error(istatus, fname)

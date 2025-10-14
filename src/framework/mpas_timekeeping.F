@@ -12,6 +12,7 @@ module mpas_timekeeping
    use mpas_dmpar
    use mpas_threading
    use mpas_log
+   use mpas_string_utils, only : mpas_split_string
 
    use ESMF
 
@@ -1000,12 +1001,16 @@ module mpas_timekeeping
       ! Local variables
       type (MPAS_Alarm_type), pointer :: alarmPtr
       type (MPAS_TimeInterval_type) :: searchInterval, searchRemainder
+      type (MPAS_TimeInterval_type) :: zeroInterval
       integer (kind=I8KIND) :: nDivs
       integer :: threadNum
       integer :: ierr_tmp
 
+
       ierr = 0
       ierr_tmp = 0
+
+      call mpas_set_timeInterval(zeroInterval, S=0)
 
       threadNum = mpas_threading_get_thread_num()
 
@@ -1023,22 +1028,26 @@ module mpas_timekeeping
                      if (now > referenceTime) then
                         searchInterval = now - referenceTime
                         call mpas_interval_division(referenceTime, searchInterval, alarmPtr % ringTimeInterval, nDivs, searchRemainder)
-                        alarmPtr % prevRingTime = now - searchRemainder
                      else
                         searchInterval = referenceTime - now
                         call mpas_interval_division(referenceTime, searchInterval, alarmPtr % ringTimeInterval, nDivs, searchRemainder)
-                        alarmPtr % prevRingTime = now - (alarmPtr % ringTimeInterval - searchRemainder)
+                        if (searchRemainder /= zeroInterval) then
+                            searchRemainder = alarmPtr % ringTimeInterval - searchRemainder
+                        end if
                      endif
-                  else ! MPAS_REVERSE
+                     alarmPtr % prevRingTime = now - alarmPtr % ringTimeInterval - searchRemainder
+                  else ! MPAS_BACKWARD
                      if (now < referenceTime) then
+                        searchInterval = referenceTime - now
+                        call mpas_interval_division(referenceTime, searchInterval, alarmPtr % ringTimeInterval, nDivs, searchRemainder)
+                     else
                         searchInterval = now - referenceTime
                         call mpas_interval_division(referenceTime, searchInterval, alarmPtr % ringTimeInterval, nDivs, searchRemainder)
-                        alarmPtr % prevRingTime = now - searchRemainder
-                     else
-                        searchInterval = referenceTime - now
-                        call mpas_interval_division(referenceTime, searchInterval, alarmPtr % ringTimeInterval, nDivs, searchRemainder)
-                        alarmPtr % prevRingTime = now - (alarmPtr % ringTimeInterval - searchRemainder)
+                        if (searchRemainder /= zeroInterval) then
+                            searchRemainder = alarmPtr % ringTimeInterval - searchRemainder
+                        end if
                      endif
+                     alarmPtr % prevRingTime = now + alarmPtr % ringTimeInterval + searchRemainder
                   end if  ! forward direction
                   !call mpas_print_alarm(clock, alarmID, ierr_tmp)
                end if  ! isRecurring
@@ -2107,40 +2116,6 @@ module mpas_timekeeping
 !      mod % ti = mod(ti1 % ti, ti2 % ti)
 !
 !   end function mod
-
-
-   subroutine mpas_split_string(string, delimiter, subStrings)   
-      
-      implicit none
-      
-      character(len=*), intent(in) :: string
-      character, intent(in) :: delimiter
-      character(len=*), pointer, dimension(:) :: subStrings
-      
-      integer :: i, start, index
-
-      index = 1
-      do i = 1, len(string)
-         if(string(i:i) == delimiter) then
-            index = index + 1
-         end if
-      end do
-
-      allocate(subStrings(1:index))
-
-      start = 1
-      index = 1
-      do i = 1, len(string)
-         if(string(i:i) == delimiter) then
-               subStrings(index) = string(start:i-1) 
-               index = index + 1
-               start = i + 1
-         end if
-      end do
-      subStrings(index) = string(start:len(string)) 
-      
-   end subroutine mpas_split_string
-
 
     subroutine mpas_get_month_day(YYYY, DoY, month, day)
        

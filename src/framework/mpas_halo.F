@@ -152,7 +152,7 @@ module mpas_halo
 
         use mpas_derived_types, only : domain_type, mpas_pool_type, mpas_pool_iterator_type, MPAS_POOL_CONFIG, &
                                        MPAS_POOL_REAL, MPAS_HALO_REAL, mpas_halo_group, MPAS_LOG_CRIT, &
-                                       field2DReal, field3DReal
+                                       field1DReal, field2DReal, field3DReal
         use mpas_pool_routines, only : mpas_pool_get_subpool, mpas_pool_remove_subpool, mpas_pool_destroy_pool, &
                                        mpas_pool_begin_iteration, mpas_pool_get_next_member, mpas_pool_get_dimension, &
                                        mpas_pool_remove_field, mpas_pool_get_field
@@ -170,6 +170,7 @@ module mpas_halo
         integer, dimension(:), pointer :: fieldHaloInfo
         integer, dimension(:), pointer :: haloLayers
         type (mpas_halo_group), pointer :: newGroup
+        type (field1DReal), pointer :: r1d
         type (field2DReal), pointer :: r2d
         type (field3DReal), pointer :: r3d
         integer, pointer :: timeLevel
@@ -229,7 +230,14 @@ module mpas_halo
                 end select
 
                 if (fieldHaloInfo(1) == MPAS_POOL_REAL) then
-                    if (fieldHaloInfo(2) == 2) then
+                    if (fieldHaloInfo(2) == 1) then
+                        call mpas_pool_get_field(completedGroup, trim(itr % memberName)//'.field', r1d)
+                        call mpas_halo_compact_halo_info(domain, r1d % sendList, r1d % recvList, r1d % dimSizes, &
+                                                         haloLayers, &
+                                                         newGroup % fields(i) % compactHaloInfo, &
+                                                         newGroup % fields(i) % compactSendLists, &
+                                                         newGroup % fields(i) % compactRecvLists)
+                    else if (fieldHaloInfo(2) == 2) then
                         call mpas_pool_get_field(completedGroup, trim(itr % memberName)//'.field', r2d)
                         call mpas_halo_compact_halo_info(domain, r2d % sendList, r2d % recvList, r2d % dimSizes, &
                                                          haloLayers, &
@@ -387,7 +395,7 @@ module mpas_halo
     subroutine mpas_halo_exch_group_add_field(domain, groupName, fieldName, timeLevel, haloLayers, iErr)
 
         use mpas_derived_types, only : domain_type, mpas_pool_type, mpas_pool_field_info_type, MPAS_POOL_REAL, &
-                                       field2DReal, field3DReal, MPAS_LOG_CRIT
+                                       field1DReal, field2DReal, field3DReal, MPAS_LOG_CRIT
         use mpas_pool_routines, only : mpas_pool_get_subpool, mpas_pool_add_config, mpas_pool_get_field_info, &
                                        mpas_pool_add_dimension, mpas_pool_get_field, mpas_pool_add_field
         use mpas_log, only : mpas_log_write
@@ -405,6 +413,7 @@ module mpas_halo
         type (mpas_pool_field_info_type) :: info
         integer, allocatable, dimension(:) :: fieldHaloInfo
         integer :: local_timeLevel
+        type (field1DReal), pointer :: r1d
         type (field2DReal), pointer :: r2d
         type (field3DReal), pointer :: r3d
 
@@ -456,7 +465,10 @@ module mpas_halo
         ! Store a reference to the field itself in the pool
         !
         if (info % fieldType == MPAS_POOL_REAL) then
-            if (info % nDims == 2) then
+            if (info % nDims == 1) then
+                call mpas_pool_get_field(domain % blocklist % allFields, fieldName, r1d, timeLevel=local_timeLevel)
+                call mpas_pool_add_field(group, fieldName//'.field', r1d)
+            else if (info % nDims == 2) then
                 call mpas_pool_get_field(domain % blocklist % allFields, fieldName, r2d, timeLevel=local_timeLevel)
                 call mpas_pool_add_field(group, fieldName//'.field', r2d)
             else if (info % nDims == 3) then
@@ -485,16 +497,31 @@ module mpas_halo
     !-----------------------------------------------------------------------
     subroutine mpas_halo_exch_group_full_halo_exch(domain, groupName, iErr)
 
+#ifdef MPAS_USE_MPI_F08
+        use mpi_f08, only : MPI_Datatype, MPI_Comm
+        use mpi_f08, only : MPI_REAL, MPI_DOUBLE_PRECISION, MPI_REQUEST_NULL, &
+                            MPI_STATUS_IGNORE, MPI_STATUSES_IGNORE
+        use mpi_f08, only : MPI_Irecv, MPI_Isend, MPI_Waitany, MPI_Waitall
+#else
         use mpi
+#endif
         use mpas_derived_types, only : domain_type, mpas_halo_group, MPAS_HALO_REAL, MPAS_LOG_CRIT
         use mpas_pool_routines, only : mpas_pool_get_array
         use mpas_log, only : mpas_log_write
 
         ! Parameters
+#ifdef MPAS_USE_MPI_F08
+#ifdef SINGLE_PRECISION
+        type (MPI_Datatype), parameter :: MPI_REALKIND = MPI_REAL
+#else
+        type (MPI_Datatype), parameter :: MPI_REALKIND = MPI_DOUBLE_PRECISION
+#endif
+#else
 #ifdef SINGLE_PRECISION
         integer, parameter :: MPI_REALKIND = MPI_REAL
 #else
         integer, parameter :: MPI_REALKIND = MPI_DOUBLE_PRECISION
+#endif
 #endif
 
         ! Arguments
@@ -508,7 +535,12 @@ module mpas_halo
         integer :: i1, i2, j, iNeighbor, iReq
         integer :: iHalo, iEndp
         integer :: nHalos, nSendEndpts, nRecvEndpts
-        integer :: rank, comm
+        integer :: rank
+#ifdef MPAS_USE_MPI_F08
+        type (MPI_Comm) :: comm
+#else
+        integer :: comm
+#endif
         integer :: mpi_ierr
         type (mpas_halo_group), pointer :: group
         integer, dimension(:), pointer :: compactHaloInfo
@@ -550,7 +582,11 @@ module mpas_halo
         ! the group; all fields should be using the same communicator, so this should not
         ! be problematic
         !
+#ifdef MPAS_USE_MPI_F08
+        comm % mpi_val = group % fields(1) % compactHaloInfo(7)
+#else
         comm = group % fields(1) % compactHaloInfo(7)
+#endif
         rank = group % fields(1) % compactHaloInfo(8)
 
 
@@ -595,6 +631,27 @@ module mpas_halo
                 maxNSendList = group % fields(i) % maxNSendList
 
                 select case (group % fields(i) % nDims)
+
+                !
+                ! Packing code for 1-d real-valued fields
+                !
+                case (1)
+                    call mpas_pool_get_array(domain % blocklist % allFields, trim(group % fields(i) % fieldName), &
+                                             group % fields(i) % r1arr, timeLevel=group % fields(i) % timeLevel)
+
+                    !
+                    ! Pack send buffer for all neighbors for current field
+                    !
+                    do iEndp = 1, nSendEndpts
+                        do iHalo = 1, nHalos
+                            do j = 1, maxNSendList
+                                if (j <= nSendLists(iHalo,iEndp)) then
+                                    group % sendBuf(packOffsets(iEndp) + sendListDst(j,iHalo,iEndp)) = &
+                                        group % fields(i) % r1arr(sendListSrc(j,iHalo,iEndp))
+                                end if
+                            end do
+                        end do
+                    end do
 
                 !
                 ! Packing code for 2-d real-valued fields
@@ -708,6 +765,22 @@ module mpas_halo
                     select case (group % fields(i) % nDims)
 
                     !
+                    ! Unpacking code for 1-d real-valued fields
+                    !
+                    case (1)
+                        !
+                        ! Unpack recv buffer from all neighbors for current field
+                        !
+                        do iHalo = 1, nHalos
+                            do j = 1, maxNRecvList
+                                if (j <= nRecvLists(iHalo,iEndp)) then
+                                    group % fields(i) % r1arr(recvListDst(j,iHalo,iEndp)) = &
+                                        group % recvBuf(unpackOffsets(iEndp) + recvListSrc(j,iHalo,iEndp))
+                                end if
+                            end do
+                        end do
+
+                    !
                     ! Unpacking code for 2-d real-valued fields
                     !
                     case (2)
@@ -756,7 +829,9 @@ module mpas_halo
         ! to not leave pointers to what might later be incorrect targets
         !
         do i = 1, group % nFields
-            if (group % fields(i) % nDims == 2) then
+            if (group % fields(i) % nDims == 1) then
+                nullify(group % fields(i) % r1arr)
+            else if (group % fields(i) % nDims == 2) then
                 nullify(group % fields(i) % r2arr)
             else if (group % fields(i) % nDims == 3) then
                 nullify(group % fields(i) % r3arr)
@@ -992,7 +1067,11 @@ module mpas_halo
         ! 7-8: Add MPI info
         !
         idx = 7
+#ifdef MPAS_USE_MPI_F08
+        compactHaloInfo(idx) = domain % dminfo % comm % mpi_val
+#else
         compactHaloInfo(idx) = domain % dminfo % comm
+#endif
         idx = idx + 1
         compactHaloInfo(idx) = domain % dminfo % my_proc_id
         idx = idx + 1
