@@ -750,7 +750,7 @@ module mpas_isobaric_diagnostics
            enddo
         enddo
        
-        if (NEED_TEMP .or. NEED_RELHUM .or. NEED_DEWPOINT .or. need_mslp) then
+        if (NEED_TEMP .or. NEED_DEWPOINT .or. need_mslp .or. need_t_isobaric) then
            !calculation of temperature at cell centers:
             do iCell = 1,nCells
             do k = 1,nVertLevels
