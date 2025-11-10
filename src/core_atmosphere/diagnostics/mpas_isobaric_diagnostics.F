@@ -1306,7 +1306,7 @@ module mpas_isobaric_diagnostics
             allocate(press_interp(nCells, nIsoLevelsU))
 
             do k=1,nIsoLevelsU
-               press_interp(:,k) = t_iso_levels(k)
+               press_interp(:,k) = u_iso_levels(k)
             end do
 
             do iCell=1,nCells
