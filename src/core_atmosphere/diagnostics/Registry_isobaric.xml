@@ -151,13 +151,21 @@
 
         <var name="dtheta_dt_dyn_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
              description="Potential temperature tendency from dynamics vertically interpolated to isobaric levels"
-             packages="pv_isobaric"/>
+             packages="pv_isobaric"/> <!-- TODO: seems to be missing from the module -->
 
         <var name="dtheta_dt_cu_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
              description="Potential temperature tendency from cumulus scheme vertically interpolated to isobaric levels"
              packages="pv_isobaric"/>
 
-    
+        <var name="rthblten_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
+             description="Tendency of potential temperature due to PBL processes vertically interpolated to isobaric levels"/>
+
+        <var name="rthratenlw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
+             description="Tendency of potential temperature due to long wave radiation vertically interpolated to isobaric levels"/>
+
+        <var name="rthratensw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
+             description="Tendency of potential temperature due to short wave radiation vertically interpolated to isobaric levels"/>
+
         <!-- Accumulated PV tendencies -->
         <var name="acc_depv_dt_lw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
              description="Accumulated diabatic PV tendency from longwave radiation vertically interpolated to isobaric levels"

@@ -98,6 +98,7 @@ module mpas_isobaric_diagnostics
         call mpas_pool_get_subpool(all_pools, 'mesh', mesh)
         call mpas_pool_get_subpool(all_pools, 'state', state)
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
+        call mpas_pool_get_subpool(all_pools, 'tend_physics', tend_physics)
 
         clock => simulation_clock
         configs => configs_in
@@ -676,6 +677,7 @@ module mpas_isobaric_diagnostics
                                                       depv_dt_fric_bl, depv_dt_fric_cu, depv_dt_fric_mix, &
                                                       depv_dt_diab, depv_dt_fric, depv_dt_dyn, &
                                                       dtheta_dt_cu, dtheta_dt_mp, &
+                                                      rthblten, rthratenlw, rthratensw, &
                                                       depv_dt_mp_evap_rw, depv_dt_mp_evap_cw, &
                                                       depv_dt_mp_depo_ice, depv_dt_mp_melt_ice, &
                                                       depv_dt_mp_frez_ice, depv_dt_mp_allproc
@@ -689,6 +691,7 @@ module mpas_isobaric_diagnostics
                                                       depv_dt_diab_isobaric, depv_dt_fric_isobaric, &
                                                       depv_dt_dyn_isobaric, &
                                                       dtheta_dt_cu_isobaric, dtheta_dt_mp_isobaric, &
+                                                      rthblten_isobaric, rthratenlw_isobaric, rthratensw_isobaric, &
                                                       depv_dt_mp_evap_rw_isobaric, depv_dt_mp_evap_cw_isobaric, &
                                                       depv_dt_mp_depo_ice_isobaric, depv_dt_mp_melt_ice_isobaric, &
                                                       depv_dt_mp_frez_ice_isobaric, depv_dt_mp_allproc_isobaric
@@ -721,7 +724,10 @@ module mpas_isobaric_diagnostics
         call mpas_pool_get_array(diag, 'depv_dt_dyn', depv_dt_dyn)
         call mpas_pool_get_array(diag, 'dtheta_dt_cu', dtheta_dt_cu)            
         call mpas_pool_get_array(diag, 'dtheta_dt_mp', dtheta_dt_mp) 
-        
+        call mpas_pool_get_array(tend_physics, 'rthblten', rthblten)
+        call mpas_pool_get_array(tend_physics, 'rthratenlw', rthratenlw)
+        call mpas_pool_get_array(tend_physics, 'rthratensw', rthratensw)
+
         ! Tendency variables to interpolate
         call mpas_pool_get_array(diag, 'depv_dt_lw_isobaric', depv_dt_lw_isobaric)
         call mpas_pool_get_array(diag, 'depv_dt_sw_isobaric', depv_dt_sw_isobaric)
@@ -737,6 +743,9 @@ module mpas_isobaric_diagnostics
         call mpas_pool_get_array(diag, 'depv_dt_dyn_isobaric', depv_dt_dyn_isobaric)
         call mpas_pool_get_array(diag, 'dtheta_dt_cu_isobaric', dtheta_dt_cu_isobaric)
         call mpas_pool_get_array(diag, 'dtheta_dt_mp_isobaric', dtheta_dt_mp_isobaric)
+        call mpas_pool_get_array(diag, 'rthblten_isobaric', rthblten_isobaric)
+        call mpas_pool_get_array(diag, 'rthratenlw_isobaric', rthratenlw_isobaric)
+        call mpas_pool_get_array(diag, 'rthratensw_isobaric', rthratensw_isobaric)
 
         ! Thompson microphysics process tendencies:
         call mpas_pool_get_config(configs, 'config_pv_microphys', config_pv_microphys)
@@ -812,7 +821,7 @@ module mpas_isobaric_diagnostics
         call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_dyn, nIsoLevels, iso_levels, depv_dt_dyn_isobaric) 
 
         !--------------------------------------------------------------------
-        ! Interpolate potential temperature tendencies from latent heating:
+        ! Interpolate potential temperature tendencies:
 
         if (associated(dtheta_dt_cu)) then
            call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, dtheta_dt_cu, nIsoLevels, iso_levels, dtheta_dt_cu_isobaric) 
@@ -821,6 +830,18 @@ module mpas_isobaric_diagnostics
         if (associated(dtheta_dt_mp)) then
            call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, dtheta_dt_mp, nIsoLevels, iso_levels, dtheta_dt_mp_isobaric) 
         end if        
+
+        if (associated(rthblten)) then
+           call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, rthblten, nIsoLevels, iso_levels, rthblten_isobaric)
+        end if
+
+        if (associated(rthratenlw)) then
+            call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, rthratenlw, nIsoLevels, iso_levels, rthratenlw_isobaric)
+        end if
+
+        if (associated(rthratensw)) then
+            call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, rthratensw, nIsoLevels, iso_levels, rthratensw_isobaric)
+        end if
         
         !--------------------------------------------------------------------
         ! Interpolate PV tendencies from specific microphysical processes:
