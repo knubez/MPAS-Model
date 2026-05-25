@@ -1,5 +1,10 @@
+> [!NOTE]
+> This is a branch of MPAS-v8 [modified](https://github.com/MPAS-Dev/MPAS-Model/compare/v8.3.1...knubez:MPAS-Model:pv-isolevels-v8) to output isobaric variables,
+> leveraging the capabilities in [PR#1211](https://github.com/MPAS-Dev/MPAS-Model/pull/1211) by Manda Chasteen and May Wong,
+> with additional variables and different vertical levels, in line with our `isolevels-v8` branch.
+
 MPAS-v8.3.1
-====
+===========
 
 The Model for Prediction Across Scales (MPAS) is a collaborative project for
 developing atmosphere, ocean, and other earth-system simulation components for
