@@ -201,6 +201,7 @@ module mpas_isobaric_diagnostics
 
         need_temp_isobaric = .false.
         need_theta_isobaric = .false.
+        need_rho_isobaric = .false.
         need_dewp_isobaric = .false.
         need_relhum_isobaric = .false.
         need_qv_isobaric = .false.
@@ -222,6 +223,7 @@ module mpas_isobaric_diagnostics
            need_temp_isobaric   = need_temp_isobaric .or. need_meanT_500_300
 
            need_theta_isobaric  = MPAS_field_will_be_written('theta_isobaric')
+           need_rho_isobaric    = MPAS_field_will_be_written('rho_isobaric')
            need_dewp_isobaric   = MPAS_field_will_be_written('dewpoint_isobaric')
            need_relhum_isobaric = MPAS_field_will_be_written('relhum_isobaric')
            need_qv_isobaric     = MPAS_field_will_be_written('qvapor_isobaric')
@@ -233,10 +235,12 @@ module mpas_isobaric_diagnostics
            need_vort_isobaric   = MPAS_field_will_be_written('vorticity_isobaric')
 
            need_any_diags = need_any_diags .or. need_mslp .or. need_meanT_500_300 .or. &
-                            need_temp_isobaric .or. need_theta_isobaric .or. need_dewp_isobaric .or. &
-                            need_relhum_isobaric .or. need_qv_isobaric .or. need_uzonal_isobaric .or. &
-                            need_umerid_isobaric .or. need_hgt_isobaric .or. need_geohgt_isobaric .or. &
-                            need_w_isobaric .or. need_vort_isobaric
+                            need_temp_isobaric .or. need_theta_isobaric .or. need_rho_isobaric .or. &
+                            need_dewp_isobaric .or. need_relhum_isobaric .or. need_qv_isobaric .or. &
+                            need_uzonal_isobaric .or. need_umerid_isobaric .or. &
+                            need_hgt_isobaric .or. need_geohgt_isobaric .or. &
+                            need_w_isobaric .or. &
+                            need_vort_isobaric
 
            if (need_any_diags) then
               call mpas_log_write('Calling isobaric interpolation subroutine.')      
@@ -330,7 +334,7 @@ module mpas_isobaric_diagnostics
 
         ! Fields to be interpolated (or from which fields are derived)
         real (kind=RKIND) :: evp
-        real (kind=RKIND), dimension(:,:), pointer :: exner, height, theta, relhum, vvel
+        real (kind=RKIND), dimension(:,:), pointer :: exner, height, theta, rho, relhum, vvel
         real (kind=RKIND), dimension(:,:), pointer :: qv, uzonal, umeridional, vorticity  
         real (kind=RKIND), dimension(:,:,:), pointer :: scalars
             
@@ -338,6 +342,7 @@ module mpas_isobaric_diagnostics
 
         ! Isobaric interpolated fields
         real (kind=RKIND), dimension(:,:), pointer :: temperature_isobaric, theta_isobaric, &
+                                                      rho_isobaric, &
                                                       dewpoint_isobaric, relhum_isobaric, &
                                                       qvapor_isobaric, height_isobaric, &
                                                       geoheight_isobaric, w_isobaric, &
@@ -373,6 +378,7 @@ module mpas_isobaric_diagnostics
         call mpas_pool_get_dimension(state, 'index_qv', index_qv)
         call mpas_pool_get_array(mesh, 'zgrid', height)
         call mpas_pool_get_array(diag, 'theta', theta, time_lev)
+        call mpas_pool_get_array(diag, 'rho', rho)
         call mpas_pool_get_array(diag, 'exner', exner)
         call mpas_pool_get_array(state, 'scalars', scalars, 1)
         call mpas_pool_get_array(diag, 'relhum', relhum)
@@ -383,6 +389,7 @@ module mpas_isobaric_diagnostics
         ! Fields to interpolate:   
         call mpas_pool_get_array(diag, 'temperature_isobaric', temperature_isobaric)
         call mpas_pool_get_array(diag, 'theta_isobaric', theta_isobaric)
+        call mpas_pool_get_array(diag, 'rho_isobaric', rho_isobaric)
         call mpas_pool_get_array(diag, 'dewpoint_isobaric', dewpoint_isobaric)
         call mpas_pool_get_array(diag, 'relhum_isobaric', relhum_isobaric)
         call mpas_pool_get_array(diag, 'qvapor_isobaric', qvapor_isobaric)
@@ -438,6 +445,12 @@ module mpas_isobaric_diagnostics
         ! Interpolate theta:
         if (need_theta_isobaric) then
            call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, theta, nIsoLevels, iso_levels, theta_isobaric) 
+        end if
+
+        !--------------------------------------------------------------------
+        ! Interpolate dry air density:
+        if (need_rho_isobaric) then
+           call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, rho, nIsoLevels, iso_levels, rho_isobaric)
         end if
 
         !--------------------------------------------------------------------

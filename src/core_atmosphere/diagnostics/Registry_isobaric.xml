@@ -27,6 +27,10 @@
              description="Potential temperature vertically interpolated to isobaric levels"
              packages="isobaric"/>
 
+        <var name="rho_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="kg m^{-3}"
+             description="Dry air density vertically interpolated to isobaric levels"
+             packages="isobaric"/>
+
         <var name="dewpoint_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K"
              description="Dewpoint temperature vertically interpolated to isobaric levels"
              packages="isobaric"/> 

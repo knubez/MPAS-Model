@@ -1043,6 +1043,7 @@
                         <var name="iso_levels" packages="isobaric"/>
                         <var name="temperature_isobaric" packages="isobaric"/>
                         <var name="theta_isobaric" packages="isobaric"/>
+                        <var name="rho_isobaric" packages="isobaric"/>
                         <var name="dewpoint_isobaric" packages="isobaric"/>  
                         <var name="relhum_isobaric" packages="isobaric"/>          
                         <var name="qvapor_isobaric" packages="isobaric"/>
