@@ -5,7 +5,7 @@
 <dims>
         <!-- Number of levels to which variables are interpolated  -->
         <!-- Additional dimensions can be added if different numbers are desired for various fields -->
-        <dim name="nIsoLevels"          definition="28"
+        <dim name="nIsoLevels"          definition="27"
              description="Number of isobaric levels to which variables will be vertically interpolated"/>
 </dims>
 

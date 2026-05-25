@@ -123,9 +123,47 @@ module mpas_isobaric_diagnostics
            iso_levels = 0.0
 
            ! Define isobaric levels.
-           iso_levels(:) = (/10000.0, 12500.0, 15000.0, 17500.0, 20000.0, 22500.0, 25000.0, 27500.0, 30000.0, &
-                             32500.0, 35000.0, 40000.0, 45000.0, 50000.0, 55000.0, 60000.0, 65000.0, 70000.0, &
-                             75000.0, 77500.0, 80000.0, 82500.0, 85000.0, 87500.0, 90000.0, 92500.0, 95000.0, 100000.0/)
+           ! ERA5 pressure levels (Pa), in order of increasing pressure (decreasing altitude).
+           ! There are 37 total from 1 hPa to 1000 hPa, but we start at 100 hPa.
+           iso_levels(:) = (/ &
+              ! 1._RKIND, &
+              ! 2._RKIND, &
+              ! 3._RKIND, &
+              ! 5._RKIND, &
+              ! 7._RKIND, &
+              ! 10._RKIND, &
+              ! 20._RKIND, &
+              ! 30._RKIND, &
+              ! 50._RKIND, &
+              ! 70._RKIND, &
+              100._RKIND, &
+              125._RKIND, &
+              150._RKIND, &
+              175._RKIND, &
+              200._RKIND, &
+              225._RKIND, &
+              250._RKIND, &
+              300._RKIND, &
+              350._RKIND, &
+              400._RKIND, &
+              450._RKIND, &
+              500._RKIND, &
+              550._RKIND, &
+              600._RKIND, &
+              650._RKIND, &
+              700._RKIND, &
+              750._RKIND, &
+              775._RKIND, &
+              800._RKIND, &
+              825._RKIND, &
+              850._RKIND, &
+              875._RKIND, &
+              900._RKIND, &
+              925._RKIND, &
+              950._RKIND, &
+              975._RKIND, &
+              1000._RKIND &
+           /) * 100._RKIND ! hPa -> Pa
 
         end if    
 
