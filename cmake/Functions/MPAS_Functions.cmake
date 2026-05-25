@@ -30,6 +30,33 @@ function(get_mpas_version mpas_version)
 endfunction()
 
 ##
+# get_git_version( <git_version> )
+# Extracts the current Git version of the project.
+# <git_version> will contain the Git version string.
+# Example usage:
+# get_git_version(GIT_VERSION)
+# message("Git Version: ${GIT_VERSION}")
+##
+
+
+function(get_git_version git_version)
+    execute_process(
+            COMMAND git describe --tags --always
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            RESULT_VARIABLE RESULT
+            OUTPUT_VARIABLE GIT_VERSION
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    if(NOT RESULT EQUAL 0)
+        message(WARNING "Failed to get Git version!")
+    endif()
+    set(${git_version} ${GIT_VERSION} PARENT_SCOPE
+    )
+endfunction()
+
+
+##
 # mpas_fortran_target( <target-name> )
 #
 # Fortran configuration and options common to all MPAS Fortran targets
@@ -53,10 +80,16 @@ function(mpas_fortran_target target)
 
     # Global Fortran configuration
     set_target_properties(${target} PROPERTIES Fortran_FORMAT FREE)
-    set(MPAS_FORTRAN_TARGET_COMPILE_DEFINITIONS
-        _MPI=1
-        USE_PIO2=1
-    )
+    if(MPAS_USE_PIO)
+        set(MPAS_FORTRAN_TARGET_COMPILE_DEFINITIONS
+            USE_PIO2=1
+        )
+    else()
+        set(MPAS_FORTRAN_TARGET_COMPILE_DEFINITIONS
+            MPAS_SMIOL_SUPPORT=1
+        )
+    endif()
+    list(APPEND MPAS_FORTRAN_TARGET_COMPILE_DEFINITIONS _MPI=1)
     # Enable OpenMP support
     if(MPAS_OPENMP)
         target_link_libraries(${target} PUBLIC OpenMP::OpenMP_Fortran)
@@ -96,6 +129,17 @@ function(mpas_fortran_target target)
         else()
             list(APPEND MPAS_FORTRAN_TARGET_COMPILE_DEFINITIONS SINGLE_PRECISION)
         endif()
+    elseif(CMAKE_Fortran_COMPILER_ID MATCHES NVHPC)
+
+        list(APPEND MPAS_FORTRAN_TARGET_COMPILE_DEFINITIONS
+            $<$<COMPILE_LANGUAGE:Fortran>:-DCPRPGI -DMPAS_NAMELIST_SUFFIX=atmosphere -DMPAS_EXE_NAME=atmosphere_model>
+            $<$<COMPILE_LANGUAGE:Fortran>:-DMPAS_OPENACC -DSINGLE_PRECISION -DMPAS_BUILD_TARGET=nvhpc>
+        )
+        list(APPEND MPAS_FORTRAN_TARGET_COMPILE_OPTIONS_PRIVATE
+            $<$<COMPILE_LANGUAGE:Fortran>: -Mnofma -acc -gpu=math_uniform,cc70,cc80 -Minfo=accel -byteswapio>
+        )
+        message(VERBOSE "${target} options: ${MPAS_FORTRAN_TARGET_COMPILE_OPTIONS_PRIVATE}")
+        message(VERBOSE "${target} defines: ${MPAS_FORTRAN_TARGET_COMPILE_DEFINITIONS}")
     endif()
     target_compile_definitions(${target} PRIVATE ${MPAS_FORTRAN_TARGET_COMPILE_DEFINITIONS})
     target_compile_options(${target} PRIVATE ${MPAS_FORTRAN_TARGET_COMPILE_OPTIONS_PRIVATE})
@@ -162,15 +206,20 @@ function(mpas_core_target)
     file(MAKE_DIRECTORY ${CORE_DATADIR})
 
     #Process registry and generate includes, namelists, and streams
-    if(${ARG_CORE} STREQUAL "atmosphere" AND ${DO_PHYSICS})
-            set(CPP_EXTRA_FLAGS ${CPP_EXTRA_FLAGS} -DDO_PHYSICS)
+    get_git_version(git_version)
+    string(TOUPPER ${ARG_CORE} ARG_CORE_UPPER)
+    set(CPP_EXTRA_FLAGS ${CPP_EXTRA_FLAGS} -DCORE_${ARG_CORE_UPPER} -DMPAS_NAMELIST_SUFFIX=${ARG_CORE} -DMPAS_EXE_NAME=mpas_${ARG_CORE} -DMPAS_GIT_VERSION=${git_version} -DMPAS_BUILD_TARGET=${CMAKE_Fortran_COMPILER_ID})
+    message("CPP_EXTRA_FLAGS: ${CPP_EXTRA_FLAGS}")
+    if (${DO_PHYSICS})
+        set(CPP_EXTRA_FLAGS ${CPP_EXTRA_FLAGS} -DDO_PHYSICS)
     endif()
-    add_custom_command(OUTPUT Registry_processed.xml
+
+add_custom_command(OUTPUT Registry_processed.xml
             COMMAND ${CPP_EXECUTABLE} -E -P ${CPP_EXTRA_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/Registry.xml > Registry_processed.xml
             COMMENT "CORE ${ARG_CORE}: Pre-Process Registry"
             DEPENDS Registry.xml)
     add_custom_command(OUTPUT ${ARG_INCLUDES}
-            COMMAND mpas_parse_${ARG_CORE} Registry_processed.xml
+            COMMAND mpas_parse_${ARG_CORE} Registry_processed.xml ${CPP_EXTRA_FLAGS}
             COMMENT "CORE ${ARG_CORE}: Parse Registry"
             DEPENDS mpas_parse_${ARG_CORE} Registry_processed.xml)
     add_custom_command(OUTPUT namelist.${ARG_CORE}
