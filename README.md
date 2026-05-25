@@ -1,7 +1,10 @@
 > [!NOTE]
 > This is a branch of MPAS-v8 [modified](https://github.com/MPAS-Dev/MPAS-Model/compare/v8.3.1...knubez:MPAS-Model:pv-isolevels-v8) to output isobaric variables,
 > leveraging the capabilities in [PR#1211](https://github.com/MPAS-Dev/MPAS-Model/pull/1211) by Manda Chasteen and May Wong,
-> with additional variables and different vertical levels, in line with our `isolevels-v8` branch.
+> [with](https://github.com/maywswong/MPAS-Model/compare/v8.2.0_tend_pv_diags...knubez:MPAS-Model:pv-isolevels-v8)
+> additional variables and different vertical levels
+> and updated to v8.3,
+> in line with our `isolevels-v8` branch.
 
 MPAS-v8.3.1
 ===========
