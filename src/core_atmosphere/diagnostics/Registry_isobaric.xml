@@ -158,13 +158,16 @@
              packages="pv_isobaric"/>
 
         <var name="rthblten_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
-             description="Tendency of potential temperature due to PBL processes vertically interpolated to isobaric levels"/>
+             description="Tendency of potential temperature due to PBL processes vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
 
         <var name="rthratenlw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
-             description="Tendency of potential temperature due to long wave radiation vertically interpolated to isobaric levels"/>
+             description="Tendency of potential temperature due to long wave radiation vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
 
         <var name="rthratensw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
-             description="Tendency of potential temperature due to short wave radiation vertically interpolated to isobaric levels"/>
+             description="Tendency of potential temperature due to short wave radiation vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
 
         <!-- Accumulated PV tendencies -->
         <var name="acc_depv_dt_lw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
@@ -261,6 +264,14 @@
 
         <var name="meanT_500_300" type="real" dimensions="nCells Time" units="K"
              description="Mean temperature in the 500-300 hPa layer"
+             packages="isobaric"/>
+
+        <var name="ivtu" type="real" dimensions="nCells Time" units="kg m^{-1}"
+             description="Zonal component of integrated water vapor transport"
+             packages="isobaric"/>
+
+        <var name="ivtv" type="real" dimensions="nCells Time" units="kg m^{-1}"
+             description="Meridional component of integrated water vapor transport"
              packages="isobaric"/>
 
 </var_struct>

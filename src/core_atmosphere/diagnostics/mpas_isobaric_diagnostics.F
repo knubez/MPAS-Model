@@ -49,11 +49,15 @@ module mpas_isobaric_diagnostics
 
 
     logical :: need_mslp, need_meanT_500_300, &
-               need_temp_isobaric, need_theta_isobaric, need_dewp_isobaric, need_relhum_isobaric, need_qv_isobaric, &
+               need_ivtu, need_ivtv, &
+               need_temp_isobaric, need_theta_isobaric, &
+               need_dewp_isobaric, need_relhum_isobaric, need_qv_isobaric, &
                need_uzonal_isobaric, need_umerid_isobaric, &
-               need_hgt_isobaric, need_geohgt_isobaric, need_w_isobaric, need_vort_isobaric, &          
+               need_hgt_isobaric, need_geohgt_isobaric,
+               need_w_isobaric, need_vort_isobaric, &
                ! PV variables
                need_ertelpv, &
+               ! TODO: most of these seem to never be set/used
                need_lw, need_sw, need_bl, need_cu, need_mp, need_mix, &
                need_fric_mix, need_fric_bl, need_fric_cu, &
                need_diab, need_fric, need_dyn, &
@@ -198,7 +202,9 @@ module mpas_isobaric_diagnostics
         need_any_diags = .false.
 
         need_mslp = .false.
-        need_meanT_500_300 = .false. 
+        need_meanT_500_300 = .false.
+        need_ivtu = .false.
+        need_ivtv = .false.
 
         need_temp_isobaric = .false.
         need_theta_isobaric = .false.
@@ -219,7 +225,8 @@ module mpas_isobaric_diagnostics
         if (config_isobaric) then
            need_mslp            = MPAS_field_will_be_written('mslp')
            need_meanT_500_300   = MPAS_field_will_be_written('meanT_500_300')
-
+           need_ivtu            = MPAS_field_will_be_written('ivtu')
+           need_ivtv            = MPAS_field_will_be_written('ivtv')
            need_temp_isobaric   = MPAS_field_will_be_written('temperature_isobaric')
            need_temp_isobaric   = need_temp_isobaric .or. need_meanT_500_300
 
@@ -236,6 +243,7 @@ module mpas_isobaric_diagnostics
            need_vort_isobaric   = MPAS_field_will_be_written('vorticity_isobaric')
 
            need_any_diags = need_any_diags .or. need_mslp .or. need_meanT_500_300 .or. &
+                            need_ivtu .or. need_ivtv .or. &
                             need_temp_isobaric .or. need_theta_isobaric .or. need_rho_isobaric .or. &
                             need_dewp_isobaric .or. need_relhum_isobaric .or. need_qv_isobaric .or. &
                             need_uzonal_isobaric .or. need_umerid_isobaric .or. &
@@ -317,7 +325,7 @@ module mpas_isobaric_diagnostics
         
         ! Mesh variables and dimensions 
         integer, pointer :: index_qv, num_scalars
-        integer, pointer :: nCells, nVertLevels
+        integer, pointer :: nCells, nCellsSolve, nVertLevels
         integer, dimension(:), pointer :: nEdgesOnCell
         integer, dimension(:,:), pointer :: verticesOnCell, cellsOnVertex
         real (kind=RKIND), dimension(:), pointer :: areaCell
@@ -352,12 +360,14 @@ module mpas_isobaric_diagnostics
 
         ! Additional fields
         real (kind=RKIND), dimension(:), pointer :: mslp, meanT_500_300
+        real (kind=RKIND), dimension(:), pointer :: ivtu, ivtv
         
         ! For mean-layer calculations
         real (kind=RKIND), dimension(:,:), allocatable :: press_in, field_in
 
         ! Mesh variables
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+        call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
         call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
         call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
         call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
@@ -407,6 +417,8 @@ module mpas_isobaric_diagnostics
         ! Additional fields
         call mpas_pool_get_array(diag, 'mslp', mslp)
         call mpas_pool_get_array(diag, 'meanT_500_300', meanT_500_300)
+        call mpas_pool_get_array(diag, 'ivtu', ivtu)
+        call mpas_pool_get_array(diag, 'ivtv', ivtv)
         
         ! Initialize qv 
         qv => scalars(index_qv,:,:)
@@ -549,6 +561,28 @@ module mpas_isobaric_diagnostics
            !enddo
         end if
 
+        !--------------------------------------------------------------------
+        ! Calculate integrated water vapor transport:
+        if (need_ivtu) then
+           ivtu(:) = 0._RKIND
+           do iCell = 1, nCellsSolve
+              do k = 1, nVertLevels
+                 ivtu(iCell) = ivtu(iCell) + ( &
+                   scalars(index_qv,k,iCell) * uzonal(k,iCell) * rho(k,iCell) &
+                   * (height(k+1,iCell) - height(k,iCell)))
+              end do
+           end do
+        end if
+        if (need_ivtv) then
+           ivtv(:) = 0._RKIND
+           do iCell = 1, nCellsSolve
+              do k = 1, nVertLevels
+                 ivtv(iCell) = ivtv(iCell) + ( &
+                   scalars(index_qv,k,iCell) * umeridional(k,iCell) * rho(k,iCell) &
+                   * (height(k+1,iCell) - height(k,iCell)))
+              end do
+           end do
+        end if
         
         if (allocated(pressure)) deallocate(pressure)
         if (allocated(temperature)) deallocate(temperature)
