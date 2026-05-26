@@ -1752,7 +1752,7 @@ module atm_time_integration
          call mpas_pool_get_array(diag, 'acc_qv_tend_dyn_large', acc_qv_tend_dyn_large)
 
          if (config_monotonic) then
-            acc_qv_tend_dyn_large(:,:) = acc_qv_tend_dyn_large(:,:) + ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
+            acc_qv_tend_dyn_large(:,:) = acc_qv_tend_dyn_large(:,:) + ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / dt
          else
             acc_qv_tend_dyn_large(:,:) = acc_qv_tend_dyn_large(:,:) + 0._RKIND
          end if 
@@ -1762,7 +1762,7 @@ module atm_time_integration
             dqv_dt_dyn(:,:) = 0.0
 
             if (config_monotonic) then
-               dqv_dt_dyn(:,:) =  ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt  ! MW: added for PV
+               dqv_dt_dyn(:,:) =  ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / dt  ! MW: added for PV
             end if 
          end if   
 
