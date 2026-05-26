@@ -51,9 +51,10 @@ module mpas_isobaric_diagnostics
     logical :: need_mslp, need_meanT_500_300, &
                need_ivtu, need_ivtv, &
                need_temp_isobaric, need_theta_isobaric, &
+               need_rho_isobaric, &
                need_dewp_isobaric, need_relhum_isobaric, need_qv_isobaric, &
                need_uzonal_isobaric, need_umerid_isobaric, &
-               need_hgt_isobaric, need_geohgt_isobaric,
+               need_hgt_isobaric, need_geohgt_isobaric, &
                need_w_isobaric, need_vort_isobaric, &
                ! PV variables
                need_ertelpv, &

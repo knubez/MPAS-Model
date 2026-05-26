@@ -2368,6 +2368,8 @@ module mpas_pv_diagnostics
       !real(kind=RKIND), pointer :: cf1, cf2, cf3
       !real(kind=RKIND), dimension(:), pointer :: rdzw
 
+      integer :: ierr
+
       ! mesh / config vars
       call mpas_get_timeInterval(mpas_get_clock_timestep(clock, ierr), dt=dt)
       call mpas_pool_get_config(configs, 'config_pv_microphys', config_pv_microphys)
@@ -3498,6 +3500,7 @@ module mpas_pv_diagnostics
       real (kind=RKIND), dimension(:,:), pointer :: thmswten, dtheta_dt_sw, thmlwten, dtheta_dt_lw
       real (kind=RKIND), dimension(:,:), pointer :: thmmpten, qvmpten, dtheta_dt_mp
 
+      integer :: ierr
 
       ! -----------------------------------------------------------
       ! Calculate theta tendencies from theta_m tendencies
