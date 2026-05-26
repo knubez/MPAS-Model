@@ -65,7 +65,8 @@ module mpas_isobaric_diagnostics
                need_evap_rw, need_evap_cw, need_depo, need_melt, need_frez, need_mp_all, &
                need_pvtend_isobaric, need_mptend_isobaric, &
                ! Latent heating rates 
-               need_dtheta_dt_cu, need_dtheta_dt_mp, need_thtend_isobaric  
+               need_dtheta_dt_cu, need_dtheta_dt_mp, need_dtheta_dt_dyn, &
+               need_thtend_isobaric
 
     contains
 
@@ -711,7 +712,7 @@ module mpas_isobaric_diagnostics
                                                       depv_dt_mix,  &
                                                       depv_dt_fric_bl, depv_dt_fric_cu, depv_dt_fric_mix, &
                                                       depv_dt_diab, depv_dt_fric, depv_dt_dyn, &
-                                                      dtheta_dt_cu, dtheta_dt_mp, &
+                                                      dtheta_dt_cu, dtheta_dt_mp, dtheta_dt_dyn, &
                                                       rthblten, rthratenlw, rthratensw, &
                                                       depv_dt_mp_evap_rw, depv_dt_mp_evap_cw, &
                                                       depv_dt_mp_depo_ice, depv_dt_mp_melt_ice, &
@@ -725,7 +726,7 @@ module mpas_isobaric_diagnostics
                                                       depv_dt_fric_mix_isobaric, &
                                                       depv_dt_diab_isobaric, depv_dt_fric_isobaric, &
                                                       depv_dt_dyn_isobaric, &
-                                                      dtheta_dt_cu_isobaric, dtheta_dt_mp_isobaric, &
+                                                      dtheta_dt_cu_isobaric, dtheta_dt_mp_isobaric, dtheta_dt_dyn_isobaric, &
                                                       rthblten_isobaric, rthratenlw_isobaric, rthratensw_isobaric, &
                                                       depv_dt_mp_evap_rw_isobaric, depv_dt_mp_evap_cw_isobaric, &
                                                       depv_dt_mp_depo_ice_isobaric, depv_dt_mp_melt_ice_isobaric, &
@@ -757,8 +758,9 @@ module mpas_isobaric_diagnostics
         call mpas_pool_get_array(diag, 'depv_dt_diab', depv_dt_diab)
         call mpas_pool_get_array(diag, 'depv_dt_fric', depv_dt_fric)
         call mpas_pool_get_array(diag, 'depv_dt_dyn', depv_dt_dyn)
-        call mpas_pool_get_array(diag, 'dtheta_dt_cu', dtheta_dt_cu)            
-        call mpas_pool_get_array(diag, 'dtheta_dt_mp', dtheta_dt_mp) 
+        call mpas_pool_get_array(diag, 'dtheta_dt_cu', dtheta_dt_cu)
+        call mpas_pool_get_array(diag, 'dtheta_dt_mp', dtheta_dt_mp)
+        call mpas_pool_get_array(diag, 'dtheta_dt_dyn', dtheta_dt_dyn)
         call mpas_pool_get_array(tend_physics, 'rthblten', rthblten)
         call mpas_pool_get_array(tend_physics, 'rthratenlw', rthratenlw)
         call mpas_pool_get_array(tend_physics, 'rthratensw', rthratensw)
@@ -778,6 +780,7 @@ module mpas_isobaric_diagnostics
         call mpas_pool_get_array(diag, 'depv_dt_dyn_isobaric', depv_dt_dyn_isobaric)
         call mpas_pool_get_array(diag, 'dtheta_dt_cu_isobaric', dtheta_dt_cu_isobaric)
         call mpas_pool_get_array(diag, 'dtheta_dt_mp_isobaric', dtheta_dt_mp_isobaric)
+        call mpas_pool_get_array(diag, 'dtheta_dt_dyn_isobaric', dtheta_dt_dyn_isobaric)
         call mpas_pool_get_array(diag, 'rthblten_isobaric', rthblten_isobaric)
         call mpas_pool_get_array(diag, 'rthratenlw_isobaric', rthratenlw_isobaric)
         call mpas_pool_get_array(diag, 'rthratensw_isobaric', rthratensw_isobaric)
@@ -864,7 +867,11 @@ module mpas_isobaric_diagnostics
 
         if (associated(dtheta_dt_mp)) then
            call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, dtheta_dt_mp, nIsoLevels, iso_levels, dtheta_dt_mp_isobaric) 
-        end if        
+        end if
+
+        if (associated(dtheta_dt_dyn)) then
+           call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, dtheta_dt_dyn, nIsoLevels, iso_levels, dtheta_dt_dyn_isobaric)
+        end if
 
         if (associated(rthblten)) then
            call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, rthblten, nIsoLevels, iso_levels, rthblten_isobaric)
