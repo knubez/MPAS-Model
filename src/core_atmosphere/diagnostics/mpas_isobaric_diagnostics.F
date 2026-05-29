@@ -36,7 +36,7 @@ module mpas_isobaric_diagnostics
                need_vorticity_50, need_vorticity_100, need_vorticity_200, need_vorticity_250, need_vorticity_500, need_vorticity_700, need_vorticity_850, need_vorticity_925, &
                need_t_isobaric, need_z_isobaric, need_meanT_500_300
 
-    logical :: need_dtheta_dt_mp_isobaric, &
+    logical :: need_dtheta_dt_mp_isobaric, need_dtheta_dt_mix_isobaric, &
                need_rh_isobaric, &
                need_rhod_isobaric, &
                need_rthblten_isobaric, need_rthratenlw_isobaric, need_rthratensw_isobaric, &
@@ -316,6 +316,8 @@ module mpas_isobaric_diagnostics
         need_any_diags = need_any_diags .or. need_meanT_500_300
         need_dtheta_dt_mp_isobaric = MPAS_field_will_be_written('dtheta_dt_mp_isobaric')
         need_any_diags = need_any_diags .or. need_dtheta_dt_mp_isobaric
+        need_dtheta_dt_mix_isobaric = MPAS_field_will_be_written('dtheta_dt_mix_isobaric')
+        need_any_diags = need_any_diags .or. need_dtheta_dt_mix_isobaric
         need_rh_isobaric = MPAS_field_will_be_written('rh_isobaric')
         need_any_diags = need_any_diags .or. need_rh_isobaric
         need_rhod_isobaric = MPAS_field_will_be_written('rhod_isobaric')
@@ -389,6 +391,7 @@ module mpas_isobaric_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: z_isobaric
         real (kind=RKIND), dimension(:), pointer :: meanT_500_300
         real (kind=RKIND), dimension(:,:), pointer :: dtheta_dt_mp_isobaric
+        real (kind=RKIND), dimension(:,:), pointer :: dtheta_dt_mix_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: rh_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: rhod_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: rthblten_isobaric
@@ -569,6 +572,7 @@ module mpas_isobaric_diagnostics
 
         call mpas_pool_get_array(diag, 'rho', rho)
         call mpas_pool_get_array(diag, 'dtheta_dt_mp', dtheta_dt_mp)
+        call mpas_pool_get_array(diag, 'dtheta_dt_mix', dtheta_dt_mix)
         call mpas_pool_get_array(tend_physics, 'rthblten', rthblten)
         call mpas_pool_get_array(tend_physics, 'rthratenlw', rthratenlw)
         call mpas_pool_get_array(tend_physics, 'rthratensw', rthratensw)
@@ -580,6 +584,7 @@ module mpas_isobaric_diagnostics
         call mpas_pool_get_array(diag, 'z_isobaric', z_isobaric)
         call mpas_pool_get_array(diag, 'meanT_500_300', meanT_500_300)
         call mpas_pool_get_array(diag, 'dtheta_dt_mp_isobaric', dtheta_dt_mp_isobaric)
+        call mpas_pool_get_array(diag, 'dtheta_dt_mix_isobaric', dtheta_dt_mix_isobaric)
         call mpas_pool_get_array(diag, 'rh_isobaric', rh_isobaric)
         call mpas_pool_get_array(diag, 'rhod_isobaric', rhod_isobaric)
         call mpas_pool_get_array(diag, 'rthblten_isobaric', rthblten_isobaric)
@@ -675,7 +680,8 @@ module mpas_isobaric_diagnostics
         if(.not.allocated(dewpoint) ) allocate(dewpoint(nVertLevels,nCells)   )
        
         if (need_t_isobaric &
-            .or. need_dtheta_dt_mp_isobaric .or. need_rh_isobaric .or. need_rhod_isobaric &
+            .or. need_dtheta_dt_mp_isobaric .or. need_dtheta_dt_mix_isobaric &
+            .or. need_rh_isobaric .or. need_rhod_isobaric &
             .or. need_rthblten_isobaric .or. need_rthratenlw_isobaric .or. need_rthratensw_isobaric &
             .or. need_qv_isobaric) then
             t_iso_levels(:) = era5_pressure_levels
@@ -1112,7 +1118,7 @@ module mpas_isobaric_diagnostics
 
         !!!!!!!!!!! Additional temperature levels for vortex tracking !!!!!!!!!!!
         if (need_t_isobaric .or. need_meanT_500_300 &
-            .or. need_dtheta_dt_mp_isobaric &
+            .or. need_dtheta_dt_mp_isobaric .or. need_dtheta_dt_mix_isobaric &
             .or. need_rh_isobaric &
             .or. need_rhod_isobaric &
             .or. need_rthblten_isobaric .or. need_rthratenlw_isobaric .or. need_rthratensw_isobaric &
@@ -1170,6 +1176,19 @@ module mpas_isobaric_diagnostics
                 call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
                 do k = 1, nIsoLevelsT
                    dtheta_dt_mp_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                end do
+            end if
+
+            if (need_dtheta_dt_mix_isobaric) then
+               do iCell = 1, nCells
+               do k = 1, nVertLevels
+                  kk = nVertLevels + 1 - k
+                  field_in(iCell,kk) = dtheta_dt_mix(k,iCell)
+                end do
+                end do
+                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                do k = 1, nIsoLevelsT
+                   dtheta_dt_mix_isobaric(k,1:nCells) = field_interp(1:nCells,k)
                 end do
             end if
 
