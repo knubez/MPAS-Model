@@ -214,7 +214,7 @@
              description="Temperature interpolated to isobaric surfaces defined in t_iso_levels"/>
 
         <var name="z_isobaric"       type="real" dimensions="nIsoLevelsZ nCells Time" units="m"
-             description="Height interpolated to isobaric surfaces defined in z_iso_levels"/>
+             description="Geometric height interpolated to isobaric surfaces defined in z_iso_levels"/>
 
         <var name="meanT_500_300"    type="real" dimensions="nCells Time" units="K"
              description="Mean temperature in the 300 hPa - 500 hPa layer"/>
