@@ -41,7 +41,8 @@ module mpas_isobaric_diagnostics
                need_rhod_isobaric, &
                need_rthblten_isobaric, need_rthcuten_isobaric, need_rthdynten_isobaric, &
                need_rthmpten_isobaric, need_rthratenlw_isobaric, need_rthratensw_isobaric, &
-               need_qv_isobaric
+               need_qv_isobaric, &
+               need_ertel_pv_isobaric
 
     logical :: need_uzonal_isobaric, need_umeridional_isobaric, need_w_isobaric, &
                need_vorticity_isobaric
@@ -337,6 +338,8 @@ module mpas_isobaric_diagnostics
         need_any_diags = need_any_diags .or. need_rthratensw_isobaric
         need_qv_isobaric = MPAS_field_will_be_written('qv_isobaric')
         need_any_diags = need_any_diags .or. need_qv_isobaric
+        need_ertel_pv_isobaric = MPAS_field_will_be_written('ertel_pv_isobaric')
+        need_any_diags = need_any_diags .or. need_ertel_pv_isobaric
         need_uzonal_isobaric = MPAS_field_will_be_written('uzonal_isobaric')
         need_any_diags = need_any_diags .or. need_uzonal_isobaric
         need_umeridional_isobaric = MPAS_field_will_be_written('umeridional_isobaric')
@@ -390,6 +393,7 @@ module mpas_isobaric_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: rho
         real (kind=RKIND), dimension(:,:), pointer :: dtheta_dt_mp, dtheta_dt_mix
         real (kind=RKIND), dimension(:,:), pointer :: rthblten, rthcuten, rthdynten, rthmpten, rthratenlw, rthratensw
+        real (kind=RKIND), dimension(:,:), pointer :: ertel_pv
 
         real (kind=RKIND), dimension(:), pointer :: t_iso_levels
         real (kind=RKIND), dimension(:), pointer :: z_iso_levels
@@ -408,6 +412,7 @@ module mpas_isobaric_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: rthratenlw_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: rthratensw_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: qv_isobaric
+        real (kind=RKIND), dimension(:,:), pointer :: ertel_pv_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: uzonal_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: umeridional_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: w_isobaric
@@ -589,6 +594,7 @@ module mpas_isobaric_diagnostics
         call mpas_pool_get_array(tend_physics, 'rthmpten', rthmpten)
         call mpas_pool_get_array(tend_physics, 'rthratenlw', rthratenlw)
         call mpas_pool_get_array(tend_physics, 'rthratensw', rthratensw)
+        call mpas_pool_get_array(diag, 'ertel_pv', ertel_pv)
 
         call mpas_pool_get_array(diag, 't_iso_levels', t_iso_levels)
         call mpas_pool_get_array(diag, 'z_iso_levels', z_iso_levels)
@@ -607,6 +613,7 @@ module mpas_isobaric_diagnostics
         call mpas_pool_get_array(diag, 'rthratenlw_isobaric', rthratenlw_isobaric)
         call mpas_pool_get_array(diag, 'rthratensw_isobaric', rthratensw_isobaric)
         call mpas_pool_get_array(diag, 'qv_isobaric', qv_isobaric)
+        call mpas_pool_get_array(diag, 'ertel_pv_isobaric', ertel_pv_isobaric)
         call mpas_pool_get_array(diag, 'uzonal_isobaric', uzonal_isobaric)
         call mpas_pool_get_array(diag, 'umeridional_isobaric', umeridional_isobaric)
         call mpas_pool_get_array(diag, 'w_isobaric', w_isobaric)
@@ -700,7 +707,7 @@ module mpas_isobaric_diagnostics
             .or. need_rh_isobaric .or. need_rhod_isobaric &
             .or. need_rthblten_isobaric .or. need_rthcuten_isobaric .or. need_rthdynten_isobaric &
             .or. need_rthmpten_isobaric .or. need_rthratenlw_isobaric .or. need_rthratensw_isobaric &
-            .or. need_qv_isobaric) then
+            .or. need_qv_isobaric .or. need_ertel_pv_isobaric) then
             t_iso_levels(:) = era5_pressure_levels
         end if
        
@@ -1140,7 +1147,7 @@ module mpas_isobaric_diagnostics
             .or. need_rhod_isobaric &
             .or. need_rthblten_isobaric .or. need_rthcuten_isobaric .or. need_rthdynten_isobaric &
             .or. need_rthmpten_isobaric .or. need_rthratenlw_isobaric .or. need_rthratensw_isobaric &
-            .or. need_qv_isobaric) then
+            .or. need_qv_isobaric .or. need_ertel_pv_isobaric) then
 
             allocate(field_in(nCells, nVertLevels))
             allocate(press_in(nCells, nVertLevels))
@@ -1324,6 +1331,19 @@ module mpas_isobaric_diagnostics
                 call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
                 do k = 1, nIsoLevelsT
                    qv_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                end do
+            end if
+
+            if (need_ertel_pv_isobaric) then
+                do iCell = 1, nCells
+                do k = 1, nVertLevels
+                   kk = nVertLevels + 1 - k
+                   field_in(iCell,kk) = ertel_pv(k,iCell)
+                end do
+                end do
+                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                do k = 1, nIsoLevelsT
+                   ertel_pv_isobaric(k,1:nCells) = field_interp(1:nCells,k)
                 end do
             end if
      
