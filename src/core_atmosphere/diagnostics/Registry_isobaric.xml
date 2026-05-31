@@ -263,7 +263,7 @@
         <var name="qv_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="kg kg^{-1}"
              description="Water vapor mixing ratio interpolated to isobaric surfaces defined in t_iso_levels"/>
 
-        <var name="ertel_pv_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="kg kg^{-1}"
+        <var name="ertel_pv_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="PVU"
              description="Ertel's potential vorticity interpolated to isobaric surfaces defined in t_iso_levels"/>
 
         <!-- u_iso_levels cell variables -->
