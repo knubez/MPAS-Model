@@ -91,7 +91,8 @@ module mpas_pv_diagnostics
         need_any_budget = .false.
 
 
-        need_ertel_pv = MPAS_field_will_be_written('ertel_pv')
+        need_ertel_pv = MPAS_field_will_be_written('ertel_pv') &
+           .or. MPAS_field_will_be_written('ertel_pv_isobaric')
         need_any_diags = need_any_diags .or. need_ertel_pv
         need_u_pv = MPAS_field_will_be_written('u_pv')
         need_any_diags = need_any_diags .or. need_u_pv
