@@ -982,10 +982,10 @@ module mpas_isobaric_diagnostics
         if(allocated(press_interp)) deallocate(press_interp)
 
         if (need_w_isobaric) then
-            allocate(field_in(nVertices, nVertLevelsP1))
-            allocate(press_in(nVertices, nVertLevelsP1))
-            allocate(field_interp(nVertices, nIsoLevelsU))
-            allocate(press_interp(nVertices, nIsoLevelsU))
+            allocate(field_in(nCells, nVertLevelsP1))
+            allocate(press_in(nCells, nVertLevelsP1))
+            allocate(field_interp(nCells, nIsoLevelsU))
+            allocate(press_interp(nCells, nIsoLevelsU))
 
             do k = 1, nIsoLevelsU
                press_interp(:,k) = u_iso_levels(k)
