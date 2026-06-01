@@ -994,7 +994,7 @@ module mpas_isobaric_diagnostics
             do iCell = 1, nCells
             do k = 1, nVertLevelsP1
                kk = nVertLevelsP1 + 1 - k
-               press_in(iCell,kk) = pressure2(k,iCell)
+               press_in(iCell,kk) = pressure2(k,iCell) * 100._RKIND
             enddo
             enddo
 
@@ -1084,7 +1084,7 @@ module mpas_isobaric_diagnostics
             do iVert = 1, nVertices
             do k = 1, nVertLevels
                kk = nVertLevels + 1 - k
-               press_in(iVert,kk) = pressure_v(k,iVert)
+               press_in(iVert,kk) = pressure_v(k,iVert) * 100._RKIND
             end do
             end do
 
