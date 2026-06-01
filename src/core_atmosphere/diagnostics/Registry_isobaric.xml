@@ -257,7 +257,7 @@
         <var name="rthratenlw_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="K s^{-1}"
              description="Tendency of potential temperature due to long wave radiation interpolated to isobaric surfaces defined in t_iso_levels"/>
 
-        <var name="rthratensw_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="K s^{-1}" 
+        <var name="rthratensw_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="K s^{-1}"
              description="Tendency of potential temperature due to short wave radiation interpolated to isobaric surfaces defined in t_iso_levels"/>
 
         <var name="qv_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="kg kg^{-1}"
