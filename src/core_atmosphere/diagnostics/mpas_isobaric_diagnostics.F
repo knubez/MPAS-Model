@@ -1192,29 +1192,37 @@ module mpas_isobaric_diagnostics
             !!!!!!!!!!! Additional t_iso_levels cell variables !!!!!!!!!!!
 
             if (need_dtheta_dt_mp_isobaric) then
-               do iCell = 1, nCells
-               do k = 1, nVertLevels
-                  kk = nVertLevels + 1 - k
-                  field_in(iCell,kk) = dtheta_dt_mp(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   dtheta_dt_mp_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               if (associated(dtheta_dt_mp)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = dtheta_dt_mp(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     dtheta_dt_mp_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  dtheta_dt_mp_isobaric(:,:) = 0._RKIND
+               end if
             end if
 
             if (need_dtheta_dt_mix_isobaric) then
-               do iCell = 1, nCells
-               do k = 1, nVertLevels
-                  kk = nVertLevels + 1 - k
-                  field_in(iCell,kk) = dtheta_dt_mix(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   dtheta_dt_mix_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               if (associated(dtheta_dt_mix)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = dtheta_dt_mix(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     dtheta_dt_mix_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  dtheta_dt_mix_isobaric(:,:) = 0._RKIND
+               end if
             end if
 
             if (need_rh_isobaric) then
@@ -1244,81 +1252,105 @@ module mpas_isobaric_diagnostics
             end if
 
             if (need_rthblten_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = rthblten(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   rthblten_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               if (associated(rthblten)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = rthblten(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     rthblten_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  rthblten_isobaric(:,:) = 0._RKIND
+               end if
             end if
 
             if (need_rthcuten_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = rthcuten(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   rthcuten_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               if (associated(rthcuten)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = rthcuten(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     rthcuten_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  rthcuten_isobaric(:,:) = 0._RKIND
+               end if
             end if
 
             if (need_rthdynten_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = rthdynten(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   rthdynten_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               if (associated(rthdynten)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = rthdynten(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     rthdynten_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  rthdynten_isobaric(:,:) = 0._RKIND
+               end if
             end if
 
             if (need_rthmpten_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = rthmpten(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   rthmpten_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               if (associated(rthmpten)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = rthmpten(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     rthmpten_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  rthmpten_isobaric(:,:) = 0._RKIND
+               end if
             end if
 
             if (need_rthratenlw_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = rthratenlw(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   rthratenlw_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               if (associated(rthratenlw)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = rthratenlw(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     rthratenlw_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  rthratenlw_isobaric(:,:) = 0._RKIND
+               end if
             end if
 
             if (need_rthratensw_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = rthratensw(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   rthratensw_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               if (associated(rthratensw)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = rthratensw(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     rthratensw_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  rthratensw_isobaric(:,:) = 0._RKIND
+               end if
             end if
 
             if (need_qv_isobaric) then
