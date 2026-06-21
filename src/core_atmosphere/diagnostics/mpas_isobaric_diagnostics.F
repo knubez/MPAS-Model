@@ -1226,29 +1226,29 @@ module mpas_isobaric_diagnostics
             end if
 
             if (need_rh_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = relhum(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   rh_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               do iCell = 1, nCells
+               do k = 1, nVertLevels
+                  kk = nVertLevels + 1 - k
+                  field_in(iCell,kk) = relhum(k,iCell)
+               end do
+               end do
+               call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+               do k = 1, nIsoLevelsT
+                  rh_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+               end do
             end if
 
             if (need_rhod_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = rho(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   rhod_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               do iCell = 1, nCells
+               do k = 1, nVertLevels
+                  kk = nVertLevels + 1 - k
+                  field_in(iCell,kk) = rho(k,iCell)
+               end do
+               end do
+               call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+               do k = 1, nIsoLevelsT
+                  rhod_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+               end do
             end if
 
             if (need_rthblten_isobaric) then
@@ -1354,29 +1354,29 @@ module mpas_isobaric_diagnostics
             end if
 
             if (need_qv_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = scalars(index_qv,k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   qv_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               do iCell = 1, nCells
+               do k = 1, nVertLevels
+                  kk = nVertLevels + 1 - k
+                  field_in(iCell,kk) = scalars(index_qv,k,iCell)
+               end do
+               end do
+               call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+               do k = 1, nIsoLevelsT
+                  qv_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+               end do
             end if
 
             if (need_ertel_pv_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = ertel_pv(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   ertel_pv_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               do iCell = 1, nCells
+               do k = 1, nVertLevels
+                  kk = nVertLevels + 1 - k
+                  field_in(iCell,kk) = ertel_pv(k,iCell)
+               end do
+               end do
+               call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+               do k = 1, nIsoLevelsT
+                  ertel_pv_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+               end do
             end if
      
      
