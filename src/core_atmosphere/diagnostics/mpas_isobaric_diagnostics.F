@@ -36,11 +36,13 @@ module mpas_isobaric_diagnostics
                need_vorticity_50, need_vorticity_100, need_vorticity_200, need_vorticity_250, need_vorticity_500, need_vorticity_700, need_vorticity_850, need_vorticity_925, &
                need_t_isobaric, need_z_isobaric, need_meanT_500_300
 
-    logical :: need_dtheta_dt_mp_isobaric, &
+    logical :: need_dtheta_dt_mp_isobaric, need_dtheta_dt_mix_isobaric, &
                need_rh_isobaric, &
                need_rhod_isobaric, &
-               need_rthblten_isobaric, need_rthratenlw_isobaric, need_rthratensw_isobaric, &
-               need_qv_isobaric
+               need_rthblten_isobaric, need_rthcuten_isobaric, need_rthdynten_isobaric, &
+               need_rthmpten_isobaric, need_rthratenlw_isobaric, need_rthratensw_isobaric, &
+               need_qv_isobaric, &
+               need_ertel_pv_isobaric
 
     logical :: need_uzonal_isobaric, need_umeridional_isobaric, need_w_isobaric, &
                need_vorticity_isobaric
@@ -316,18 +318,28 @@ module mpas_isobaric_diagnostics
         need_any_diags = need_any_diags .or. need_meanT_500_300
         need_dtheta_dt_mp_isobaric = MPAS_field_will_be_written('dtheta_dt_mp_isobaric')
         need_any_diags = need_any_diags .or. need_dtheta_dt_mp_isobaric
+        need_dtheta_dt_mix_isobaric = MPAS_field_will_be_written('dtheta_dt_mix_isobaric')
+        need_any_diags = need_any_diags .or. need_dtheta_dt_mix_isobaric
         need_rh_isobaric = MPAS_field_will_be_written('rh_isobaric')
         need_any_diags = need_any_diags .or. need_rh_isobaric
         need_rhod_isobaric = MPAS_field_will_be_written('rhod_isobaric')
         need_any_diags = need_any_diags .or. need_rhod_isobaric
         need_rthblten_isobaric = MPAS_field_will_be_written('rthblten_isobaric')
         need_any_diags = need_any_diags .or. need_rthblten_isobaric
+        need_rthcuten_isobaric = MPAS_field_will_be_written('rthcuten_isobaric')
+        need_any_diags = need_any_diags .or. need_rthcuten_isobaric
+        need_rthdynten_isobaric = MPAS_field_will_be_written('rthdynten_isobaric')
+        need_any_diags = need_any_diags .or. need_rthdynten_isobaric
+        need_rthmpten_isobaric = MPAS_field_will_be_written('rthmpten_isobaric')
+        need_any_diags = need_any_diags .or. need_rthmpten_isobaric
         need_rthratenlw_isobaric = MPAS_field_will_be_written('rthratenlw_isobaric')
         need_any_diags = need_any_diags .or. need_rthratenlw_isobaric
         need_rthratensw_isobaric = MPAS_field_will_be_written('rthratensw_isobaric')
         need_any_diags = need_any_diags .or. need_rthratensw_isobaric
         need_qv_isobaric = MPAS_field_will_be_written('qv_isobaric')
         need_any_diags = need_any_diags .or. need_qv_isobaric
+        need_ertel_pv_isobaric = MPAS_field_will_be_written('ertel_pv_isobaric')
+        need_any_diags = need_any_diags .or. need_ertel_pv_isobaric
         need_uzonal_isobaric = MPAS_field_will_be_written('uzonal_isobaric')
         need_any_diags = need_any_diags .or. need_uzonal_isobaric
         need_umeridional_isobaric = MPAS_field_will_be_written('umeridional_isobaric')
@@ -379,8 +391,9 @@ module mpas_isobaric_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: umeridional, uzonal, vvel
         real (kind=RKIND), dimension(:,:,:), pointer :: scalars
         real (kind=RKIND), dimension(:,:), pointer :: rho
-        real (kind=RKIND), dimension(:,:), pointer :: dtheta_dt_mp
-        real (kind=RKIND), dimension(:,:), pointer :: rthblten, rthratenlw, rthratensw
+        real (kind=RKIND), dimension(:,:), pointer :: dtheta_dt_mp, dtheta_dt_mix
+        real (kind=RKIND), dimension(:,:), pointer :: rthblten, rthcuten, rthdynten, rthmpten, rthratenlw, rthratensw
+        real (kind=RKIND), dimension(:,:), pointer :: ertel_pv
 
         real (kind=RKIND), dimension(:), pointer :: t_iso_levels
         real (kind=RKIND), dimension(:), pointer :: z_iso_levels
@@ -389,12 +402,17 @@ module mpas_isobaric_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: z_isobaric
         real (kind=RKIND), dimension(:), pointer :: meanT_500_300
         real (kind=RKIND), dimension(:,:), pointer :: dtheta_dt_mp_isobaric
+        real (kind=RKIND), dimension(:,:), pointer :: dtheta_dt_mix_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: rh_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: rhod_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: rthblten_isobaric
+        real (kind=RKIND), dimension(:,:), pointer :: rthcuten_isobaric
+        real (kind=RKIND), dimension(:,:), pointer :: rthdynten_isobaric
+        real (kind=RKIND), dimension(:,:), pointer :: rthmpten_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: rthratenlw_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: rthratensw_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: qv_isobaric
+        real (kind=RKIND), dimension(:,:), pointer :: ertel_pv_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: uzonal_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: umeridional_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: w_isobaric
@@ -569,9 +587,14 @@ module mpas_isobaric_diagnostics
 
         call mpas_pool_get_array(diag, 'rho', rho)
         call mpas_pool_get_array(diag, 'dtheta_dt_mp', dtheta_dt_mp)
+        call mpas_pool_get_array(diag, 'dtheta_dt_mix', dtheta_dt_mix)
         call mpas_pool_get_array(tend_physics, 'rthblten', rthblten)
+        call mpas_pool_get_array(tend_physics, 'rthcuten', rthcuten)
+        call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
+        call mpas_pool_get_array(tend_physics, 'rthmpten', rthmpten)
         call mpas_pool_get_array(tend_physics, 'rthratenlw', rthratenlw)
         call mpas_pool_get_array(tend_physics, 'rthratensw', rthratensw)
+        call mpas_pool_get_array(diag, 'ertel_pv', ertel_pv)
 
         call mpas_pool_get_array(diag, 't_iso_levels', t_iso_levels)
         call mpas_pool_get_array(diag, 'z_iso_levels', z_iso_levels)
@@ -580,12 +603,17 @@ module mpas_isobaric_diagnostics
         call mpas_pool_get_array(diag, 'z_isobaric', z_isobaric)
         call mpas_pool_get_array(diag, 'meanT_500_300', meanT_500_300)
         call mpas_pool_get_array(diag, 'dtheta_dt_mp_isobaric', dtheta_dt_mp_isobaric)
+        call mpas_pool_get_array(diag, 'dtheta_dt_mix_isobaric', dtheta_dt_mix_isobaric)
         call mpas_pool_get_array(diag, 'rh_isobaric', rh_isobaric)
         call mpas_pool_get_array(diag, 'rhod_isobaric', rhod_isobaric)
         call mpas_pool_get_array(diag, 'rthblten_isobaric', rthblten_isobaric)
+        call mpas_pool_get_array(diag, 'rthcuten_isobaric', rthcuten_isobaric)
+        call mpas_pool_get_array(diag, 'rthdynten_isobaric', rthdynten_isobaric)
+        call mpas_pool_get_array(diag, 'rthmpten_isobaric', rthmpten_isobaric)
         call mpas_pool_get_array(diag, 'rthratenlw_isobaric', rthratenlw_isobaric)
         call mpas_pool_get_array(diag, 'rthratensw_isobaric', rthratensw_isobaric)
         call mpas_pool_get_array(diag, 'qv_isobaric', qv_isobaric)
+        call mpas_pool_get_array(diag, 'ertel_pv_isobaric', ertel_pv_isobaric)
         call mpas_pool_get_array(diag, 'uzonal_isobaric', uzonal_isobaric)
         call mpas_pool_get_array(diag, 'umeridional_isobaric', umeridional_isobaric)
         call mpas_pool_get_array(diag, 'w_isobaric', w_isobaric)
@@ -675,9 +703,11 @@ module mpas_isobaric_diagnostics
         if(.not.allocated(dewpoint) ) allocate(dewpoint(nVertLevels,nCells)   )
        
         if (need_t_isobaric &
-            .or. need_dtheta_dt_mp_isobaric .or. need_rh_isobaric .or. need_rhod_isobaric &
-            .or. need_rthblten_isobaric .or. need_rthratenlw_isobaric .or. need_rthratensw_isobaric &
-            .or. need_qv_isobaric) then
+            .or. need_dtheta_dt_mp_isobaric .or. need_dtheta_dt_mix_isobaric &
+            .or. need_rh_isobaric .or. need_rhod_isobaric &
+            .or. need_rthblten_isobaric .or. need_rthcuten_isobaric .or. need_rthdynten_isobaric &
+            .or. need_rthmpten_isobaric .or. need_rthratenlw_isobaric .or. need_rthratensw_isobaric &
+            .or. need_qv_isobaric .or. need_ertel_pv_isobaric) then
             t_iso_levels(:) = era5_pressure_levels
         end if
        
@@ -952,10 +982,10 @@ module mpas_isobaric_diagnostics
         if(allocated(press_interp)) deallocate(press_interp)
 
         if (need_w_isobaric) then
-            allocate(field_in(nVertices, nVertLevelsP1))
-            allocate(press_in(nVertices, nVertLevelsP1))
-            allocate(field_interp(nVertices, nIsoLevelsU))
-            allocate(press_interp(nVertices, nIsoLevelsU))
+            allocate(field_in(nCells, nVertLevelsP1))
+            allocate(press_in(nCells, nVertLevelsP1))
+            allocate(field_interp(nCells, nIsoLevelsU))
+            allocate(press_interp(nCells, nIsoLevelsU))
 
             do k = 1, nIsoLevelsU
                press_interp(:,k) = u_iso_levels(k)
@@ -964,7 +994,7 @@ module mpas_isobaric_diagnostics
             do iCell = 1, nCells
             do k = 1, nVertLevelsP1
                kk = nVertLevelsP1 + 1 - k
-               press_in(iCell,kk) = pressure2(k,iCell)
+               press_in(iCell,kk) = pressure2(k,iCell) * 100._RKIND
             enddo
             enddo
 
@@ -1054,7 +1084,7 @@ module mpas_isobaric_diagnostics
             do iVert = 1, nVertices
             do k = 1, nVertLevels
                kk = nVertLevels + 1 - k
-               press_in(iVert,kk) = pressure_v(k,iVert)
+               press_in(iVert,kk) = pressure_v(k,iVert) * 100._RKIND
             end do
             end do
 
@@ -1112,11 +1142,12 @@ module mpas_isobaric_diagnostics
 
         !!!!!!!!!!! Additional temperature levels for vortex tracking !!!!!!!!!!!
         if (need_t_isobaric .or. need_meanT_500_300 &
-            .or. need_dtheta_dt_mp_isobaric &
+            .or. need_dtheta_dt_mp_isobaric .or. need_dtheta_dt_mix_isobaric &
             .or. need_rh_isobaric &
             .or. need_rhod_isobaric &
-            .or. need_rthblten_isobaric .or. need_rthratenlw_isobaric .or. need_rthratensw_isobaric &
-            .or. need_qv_isobaric) then
+            .or. need_rthblten_isobaric .or. need_rthcuten_isobaric .or. need_rthdynten_isobaric &
+            .or. need_rthmpten_isobaric .or. need_rthratenlw_isobaric .or. need_rthratensw_isobaric &
+            .or. need_qv_isobaric .or. need_ertel_pv_isobaric) then
 
             allocate(field_in(nCells, nVertLevels))
             allocate(press_in(nCells, nVertLevels))
@@ -1161,94 +1192,191 @@ module mpas_isobaric_diagnostics
             !!!!!!!!!!! Additional t_iso_levels cell variables !!!!!!!!!!!
 
             if (need_dtheta_dt_mp_isobaric) then
-               do iCell = 1, nCells
-               do k = 1, nVertLevels
-                  kk = nVertLevels + 1 - k
-                  field_in(iCell,kk) = dtheta_dt_mp(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   dtheta_dt_mp_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               if (associated(dtheta_dt_mp)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = dtheta_dt_mp(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     dtheta_dt_mp_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  dtheta_dt_mp_isobaric(:,:) = 0._RKIND
+               end if
+            end if
+
+            if (need_dtheta_dt_mix_isobaric) then
+               if (associated(dtheta_dt_mix)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = dtheta_dt_mix(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     dtheta_dt_mix_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  dtheta_dt_mix_isobaric(:,:) = 0._RKIND
+               end if
             end if
 
             if (need_rh_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = relhum(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   rh_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               do iCell = 1, nCells
+               do k = 1, nVertLevels
+                  kk = nVertLevels + 1 - k
+                  field_in(iCell,kk) = relhum(k,iCell)
+               end do
+               end do
+               call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+               do k = 1, nIsoLevelsT
+                  rh_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+               end do
             end if
 
             if (need_rhod_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = rho(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   rhod_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               do iCell = 1, nCells
+               do k = 1, nVertLevels
+                  kk = nVertLevels + 1 - k
+                  field_in(iCell,kk) = rho(k,iCell)
+               end do
+               end do
+               call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+               do k = 1, nIsoLevelsT
+                  rhod_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+               end do
             end if
 
             if (need_rthblten_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = rthblten(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   rthblten_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               if (associated(rthblten)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = rthblten(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     rthblten_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  rthblten_isobaric(:,:) = 0._RKIND
+               end if
+            end if
+
+            if (need_rthcuten_isobaric) then
+               if (associated(rthcuten)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = rthcuten(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     rthcuten_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  rthcuten_isobaric(:,:) = 0._RKIND
+               end if
+            end if
+
+            if (need_rthdynten_isobaric) then
+               if (associated(rthdynten)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = rthdynten(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     rthdynten_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  rthdynten_isobaric(:,:) = 0._RKIND
+               end if
+            end if
+
+            if (need_rthmpten_isobaric) then
+               if (associated(rthmpten)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = rthmpten(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     rthmpten_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  rthmpten_isobaric(:,:) = 0._RKIND
+               end if
             end if
 
             if (need_rthratenlw_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = rthratenlw(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   rthratenlw_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               if (associated(rthratenlw)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = rthratenlw(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     rthratenlw_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  rthratenlw_isobaric(:,:) = 0._RKIND
+               end if
             end if
 
             if (need_rthratensw_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = rthratensw(k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   rthratensw_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               if (associated(rthratensw)) then
+                  do iCell = 1, nCells
+                  do k = 1, nVertLevels
+                     kk = nVertLevels + 1 - k
+                     field_in(iCell,kk) = rthratensw(k,iCell)
+                  end do
+                  end do
+                  call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+                  do k = 1, nIsoLevelsT
+                     rthratensw_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+                  end do
+               else
+                  rthratensw_isobaric(:,:) = 0._RKIND
+               end if
             end if
 
             if (need_qv_isobaric) then
-                do iCell = 1, nCells
-                do k = 1, nVertLevels
-                   kk = nVertLevels + 1 - k
-                   field_in(iCell,kk) = scalars(index_qv,k,iCell)
-                end do
-                end do
-                call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
-                do k = 1, nIsoLevelsT
-                   qv_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-                end do
+               do iCell = 1, nCells
+               do k = 1, nVertLevels
+                  kk = nVertLevels + 1 - k
+                  field_in(iCell,kk) = scalars(index_qv,k,iCell)
+               end do
+               end do
+               call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+               do k = 1, nIsoLevelsT
+                  qv_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+               end do
+            end if
+
+            if (need_ertel_pv_isobaric) then
+               do iCell = 1, nCells
+               do k = 1, nVertLevels
+                  kk = nVertLevels + 1 - k
+                  field_in(iCell,kk) = ertel_pv(k,iCell)
+               end do
+               end do
+               call interp_tofixed_pressure(nCells, nVertLevels, nIsoLevelsT, press_in, field_in, press_interp, field_interp)
+               do k = 1, nIsoLevelsT
+                  ertel_pv_isobaric(k,1:nCells) = field_interp(1:nCells,k)
+               end do
             end if
      
      

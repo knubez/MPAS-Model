@@ -27,7 +27,7 @@ module mpas_pv_diagnostics
 
     logical :: need_ertel_pv, need_u_pv, need_v_pv, need_theta_pv, need_vort_pv, need_iLev_DT, &
                need_tend_lw, need_tend_sw, need_tend_bl, need_tend_cu, need_tend_mix, need_tend_mp, &
-               need_tend_diab, need_tend_fric, need_tend_diab_pv, need_tend_fric_pv, need_dtheta_mp
+               need_tend_diab, need_tend_fric, need_tend_diab_pv, need_tend_fric_pv, need_dtheta_mix
 
 
     contains
@@ -91,7 +91,8 @@ module mpas_pv_diagnostics
         need_any_budget = .false.
 
 
-        need_ertel_pv = MPAS_field_will_be_written('ertel_pv')
+        need_ertel_pv = MPAS_field_will_be_written('ertel_pv') &
+           .or. MPAS_field_will_be_written('ertel_pv_isobaric')
         need_any_diags = need_any_diags .or. need_ertel_pv
         need_u_pv = MPAS_field_will_be_written('u_pv')
         need_any_diags = need_any_diags .or. need_u_pv
@@ -120,9 +121,10 @@ module mpas_pv_diagnostics
         need_tend_mix = MPAS_field_will_be_written('depv_dt_mix')
         need_any_diags = need_any_diags .or. need_tend_mix
         need_any_budget = need_any_budget .or. need_tend_mix
-        need_dtheta_mp = MPAS_field_will_be_written('dtheta_dt_mp')
-        need_any_diags = need_any_diags .or. need_dtheta_mp
-        need_any_budget = need_any_budget .or. need_dtheta_mp
+        need_dtheta_mix = MPAS_field_will_be_written('dtheta_dt_mix') &
+           .or. MPAS_field_will_be_written('dtheta_dt_mix_isobaric')
+        need_any_diags = need_any_diags .or. need_dtheta_mix
+        need_any_budget = need_any_budget .or. need_dtheta_mix
         need_tend_mp = MPAS_field_will_be_written('depv_dt_mp')
         need_any_diags = need_any_diags .or. need_tend_mp
         need_any_budget = need_any_budget .or. need_tend_mp

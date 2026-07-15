@@ -214,7 +214,7 @@
              description="Temperature interpolated to isobaric surfaces defined in t_iso_levels"/>
 
         <var name="z_isobaric"       type="real" dimensions="nIsoLevelsZ nCells Time" units="m"
-             description="Height interpolated to isobaric surfaces defined in z_iso_levels"/>
+             description="Geometric height interpolated to isobaric surfaces defined in z_iso_levels"/>
 
         <var name="meanT_500_300"    type="real" dimensions="nCells Time" units="K"
              description="Mean temperature in the 300 hPa - 500 hPa layer"/>
@@ -233,6 +233,9 @@
         <var name="dtheta_dt_mp_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="K s^{-1}"
              description="Potential temperature heating rate from microphysics interpolated to isobaric surfaces defined in t_iso_levels"/>
 
+        <var name="dtheta_dt_mix_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="K s^{-1}"
+             description="Potential temperature heating rate from explicit numerical mixing interpolated to isobaric surfaces defined in t_iso_levels"/>
+
         <var name="rh_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="%"
              description="Relative humidity interpolated to isobaric surfaces defined in t_iso_levels"/>
 
@@ -242,14 +245,26 @@
         <var name="rthblten_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="K s^{-1}"
              description="Tendency of potential temperature due to pbl processes interpolated to isobaric surfaces defined in t_iso_levels"/>
 
+        <var name="rthcuten_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="K s^{-1}"
+             description="Tendency of potential temperature due to cumulus convection interpolated to isobaric surfaces defined in t_iso_levels"/>
+
+        <var name="rthdynten_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="K s^{-1}"
+             description="Tendency of potential temperature due to horizontal and vertical advections interpolated to isobaric surfaces defined in t_iso_levels"/>
+
+        <var name="rthmpten_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="K s^{-1}"
+             description="Tendency of potential temperature due to cloud microphysics interpolated to isobaric surfaces defined in t_iso_levels"/>
+
         <var name="rthratenlw_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="K s^{-1}"
              description="Tendency of potential temperature due to long wave radiation interpolated to isobaric surfaces defined in t_iso_levels"/>
 
-        <var name="rthratensw_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="K s^{-1}" 
+        <var name="rthratensw_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="K s^{-1}"
              description="Tendency of potential temperature due to short wave radiation interpolated to isobaric surfaces defined in t_iso_levels"/>
 
         <var name="qv_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="kg kg^{-1}"
              description="Water vapor mixing ratio interpolated to isobaric surfaces defined in t_iso_levels"/>
+
+        <var name="ertel_pv_isobaric" type="real" dimensions="nIsoLevelsT nCells Time" units="PVU"
+             description="Ertel's potential vorticity interpolated to isobaric surfaces defined in t_iso_levels"/>
 
         <!-- u_iso_levels cell variables -->
 

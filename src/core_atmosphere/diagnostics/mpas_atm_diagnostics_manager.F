@@ -54,10 +54,10 @@ module mpas_atm_diagnostics_manager
         call mpas_atm_diag_utils_init(stream_mgr)
 
         call diagnostic_template_setup(configs, structs, clock)
-        call isobaric_diagnostics_setup(structs, clock)
         call cloud_diagnostics_setup(structs, clock)
         call convective_diagnostics_setup(structs, clock)
         call pv_diagnostics_setup(structs, clock)
+        call isobaric_diagnostics_setup(structs, clock)
         call soundings_setup(configs, structs, clock, dminfo)
 
     end subroutine mpas_atm_diag_setup
@@ -110,10 +110,10 @@ module mpas_atm_diagnostics_manager
 
 
         call diagnostic_template_compute()
-        call isobaric_diagnostics_compute()
         call cloud_diagnostics_compute()
         call convective_diagnostics_compute()
         call pv_diagnostics_compute()
+        call isobaric_diagnostics_compute()
         call soundings_compute()
 
     end subroutine mpas_atm_diag_compute
